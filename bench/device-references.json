@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-10",
+  "source": "User-provided harness review; device observations in the port performance skill",
+  "device_compiler_version": null,
+  "compiler_note": "Review identifies Homebrew riscv64-elf-gcc; compiler version of the measured card artifacts was not supplied or verified.",
+  "measurements": [
+    {
+      "revision": "871c651d448ffcdd63f2f647be25f12a712ca88d",
+      "game": "deltarune",
+      "window": "dodge",
+      "mode": "accuracy",
+      "ms": 220.4
+    },
+    {
+      "revision": "72eed8e3b7b5565dffd3355f4465a2c34d15c6bd",
+      "game": "deltarune",
+      "window": "dodge",
+      "mode": "accuracy",
+      "ms": 247.3
+    }
+  ],
+  "assumptions": {
+    "clock_cost_cycles": 1680,
+    "cpu_hz": 100000000,
+    "audio_rate_pairs_per_second": 48000,
+    "framebuffer_uncached_on_measured_v07_runtime": "likely, unconfirmed"
+  }
+}

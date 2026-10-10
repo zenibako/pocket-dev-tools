@@ -29,6 +29,10 @@ It restores a full RV32 process checkpoint and runs three consecutive real
 game-loop frames for each game, including scripts, collision, software rendering
 and audio mixing. The original event-fixture harness below remains available.
 
+For revision snapshots, baseline/candidate pixel and PCM comparison, separate
+traced/timing executables, Speed mode and optional cost assumptions, use
+[Revision experiments](bench/README.md). The original baseline is preserved.
+
 ## Run
 
 From this directory, with Python 3, Docker/Colima and host Clang installed.

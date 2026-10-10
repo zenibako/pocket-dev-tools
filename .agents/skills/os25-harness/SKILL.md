@@ -1,6 +1,6 @@
 ---
 name: os25-harness
-description: Run and interpret the isolated os25 RV32/Verilator harness for Undertale and Deltarune Chapter 1, including captured VM events and complete battle frames. Use for CPU/cache/SDRAM or BRAM experiments, deterministic state/pixel/audio replay, and testing Pocket constraints without using the active checkout or SD card.
+description: Run the isolated os25 RV32/Verilator harness for Undertale and Deltarune Chapter 1. Use for revision regression comparison, traced/timing frame replay, Speed mode, and CPU/cache/memory experiments without the active checkout or SD card.
 ---
 
 # Testing with the os25 CPU and memory RTL
@@ -18,11 +18,12 @@ root. Read [SETUP.md](../../../SETUP.md) to import compatible frozen inputs with
 the supplied game-port, OS or SDK source roots. Only this repository is mounted
 at `/work` in Docker. Use its Python launchers; avoid port deployment commands.
 
-`inputs/`, `captures/`, `build/` and `battle_fixtures.inc` are private ignored
-state. A Git checkout alone cannot run game captures. Imports require fresh
-absent destinations and reject external links. Preserve the baseline in a
-separate checkout for candidate experiments. Keep assets, bytecode and checkpoints
-out of commits. No SD card is needed or used.
+`inputs/`, `captures/`, `build/`, `experiments/` and `battle_fixtures.inc` are
+private ignored state. A Git checkout alone cannot run game captures. Imports
+require fresh absent destinations and reject external links. Preserve baseline
+evidence; revision experiments keep independent baseline/candidate snapshots
+inside this repository. Keep assets, bytecode and checkpoints out of commits.
+No SD card is needed or used.
 
 Run `python3 run.py verify` before an experiment. It checks the frozen input
 hashes in `input-manifest.json`. The runner snapshot is `f1d8542`; editing a sibling port does not change replay.
@@ -36,13 +37,48 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 | --- | --- | --- |
 | Synthetic and captured VM events | `python3 run.py all --jobs 4`; `build/results.json` | BC16/BC17 interpreter and value/variable handling; six captured leaf events use checked builtin transcripts |
 | Complete battle frames | `python3 fullframe/run.py run`; `build/fullframe/results.json` after `python3 fullframe/report.py` | Consecutive real game-loop iterations, all reached scripts/builtins, collision, software rendering and audio mixing |
+| Revision experiments | `python3 experiments.py`; [bench/README.md](../../../bench/README.md) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
 
 The event workload excludes real rendering and mixing; its cycles cannot stand
-in for battle frame time. The complete-frame workload currently covers Undertale
+in for battle frame time. The original complete-frame workload covers Undertale
 Flowey frames 2400–2402 and Deltarune Chapter 1 enemy-turn frames 3323–3325 in
 `room_field2`. Both follow the benchmark route with seed 7, fresh volatile saves
 and native script acceleration disabled. Coverage is these windows, not every
 battle or the whole game.
+
+## Compare a candidate before a device run
+
+Read [bench/README.md](../../../bench/README.md) for command syntax and verified
+limits. `experiments.py snapshot` exports `src/` and `vendor/` from an explicit
+Git revision, reads only Git objects from the supplied port, and retains verified
+private assets. Use a new snapshot name; never overwrite baseline evidence.
+`run --kind both` produces separately labeled traced correctness and untraced
+timing cases. Docker mounts only one independently copied case at a time.
+
+Run matching windows and modes for baseline and candidate, then `compare` their
+printed CASE paths. Require identical raw RGB555, raw PCM and pair counts for a
+behavior-preserving change. State pointers are deliberately ignored across
+builds. A same-build QEMU/RTL pass cannot establish unchanged rendering/mixing.
+Differences exit 2 and retain both PPMs; investigate rather than recapture over
+the baseline. `report` verifies source/ELF/artifact hashes and labels build kind,
+compiler, native script setting, costs and oracle exclusions.
+
+Supported revision windows: Undertale `flowey` 2400–2402; Deltarune `field`
+2800–2802, `bmenu` 3120–3122 (menu/attack section), `dodge` 3323–3325.
+`--mode speed` uses `--bench-smooth`; Accuracy uses `--bench`.
+Port profile enables native scripts by default; legacy disables them.
+`--native` is explicit: comparisons must match its setting. The port profile has
+no global `OF_PC` or extra alignment, but substitutes SDK declarations/kernel
+services. Do not describe that as full device build/ABI parity. Card compiler
+version and measured alignment remain unknown; see the recorded SDK flag conflict.
+
+Optional uncached framebuffer, 1,680-cycle clock charge and realtime audio have
+passed both supplied device-revision replays. They remain cost assumptions.
+Realtime QEMU PCM/count cannot match cycle-dependent RTL consumption and those
+fields are explicitly excluded; cross-build comparison refuses realtime cases.
+Use fixed audio for regression checks, and report underruns as simulated.
+Timing ELFs omit per-opcode/event hooks and in-loop PCM hashing; pair a traced
+case with timing evidence when checking audio correctness.
 
 ## Run or rebuild complete frames
 
@@ -107,13 +143,15 @@ fabric, Pocket SDRAM controller/arbiter and registered BRAM model. Timing uses
 MMIO `0x40000004`; cycle CSRs trap in this configuration. That MMIO use is verified
 in the harness, not a newly verified timing API for the deployed v0.7 runtime.
 
-Full-frame timing includes opcode tracing and the harness platform/allocator;
+Original full-frame timing includes opcode tracing and the harness
+platform/allocator;
 validation and UART output are outside the timed loop. The first frame has cold
 caches. Compare matching game windows, seeds, binaries and traffic settings;
 `simulated_ms` converts cycles assuming 100 MHz. Do not label these values as
 measured Pocket FPS or compare them directly with device benchmark rows.
 
-The harness bounds its heap to about 51 MiB and the SDK application map, using
+The original harness bounds its heap to about 51 MiB and the SDK application map,
+using
 its own splitting/coalescing allocator. Framebuffers are harness-allocated cached
 SDRAM, so framebuffer load/store costs do not reproduce the deployed runtime's
 uncached framebuffer alias. Clock, input and audio queue are deterministic models;
@@ -122,6 +160,11 @@ after CPU ownership is enabled through `0x4e000000`, serving only private assets
 Physical SD latency, production malloc behavior, kernel timing, hardware audio,
 interrupts, GPU execution, display scheduling, synthesis fit and board behavior
 are outside this test. Scanout is diagnostic traffic, not the display controller.
+
+Revision experiment timing and default/optional service models are documented
+separately in the bench README. Their three cold-cache frames and substituted
+services do not directly predict device benchmark section means. Preserve the
+original fullframe evidence as the reproduction of the old numerical baseline.
 
 For claims about actual speed, framebuffer alias costs, audio underruns or card
 behavior, use the game port’s device benchmark after relevant replay/desktop
