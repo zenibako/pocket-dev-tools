@@ -3,7 +3,8 @@
 Reusing cull's transformed bounds preserves the checked rendering and audio, but
 does not beat base in either sampled window. Deltarune Speed takes 87.157 versus
 87.340 simulated ms/frame in dodge (+0.21%), and 47.907 versus 48.146 in field
-(+0.50%). Keep cull opt-in; these results do not support promoting it to default.
+(+0.50%). The subsequent device bracket also shows no clear overall gain and a
+field regression. Keep cull opt-in; these results do not support promoting it to default.
 
 ## Source and change
 
@@ -85,10 +86,67 @@ warning. Default/cull strict lint passes. The 35 harness unit tests pass, all
 These are simulated three-frame samples, not physical Pocket section means.
 Kernel services/ABI, allocator, storage and audio remain substitutes. Neither
 the end-of-route sprite microprobe nor the whole route was replayed here.
-There is no measured Pocket result for this revision. No device ELF or card tree
-was rebuilt or copied during this task. A later device comparison should use
-newly built base → cull → base entries and compare full section times as well as
-the inside/outside probe.
+The device tree was subsequently built at `bbea9be` (the same renderer source
+plus verification notes); its base/cull runs are compared below. The original
+harness comparison did not rebuild or copy a device tree.
+
+## Subsequent Pocket base → cull → base
+
+Attachment SHA-256: `9294b59b32efff97841910cc3de06c62a9fc02fe57a97f8c80eea50575d7f4a0`.
+Selected report start lines: 273, 1123 and 1885. The cull report at 363 is
+byte-identical to 1123, so it counts once. Earlier reports belong to the earlier
+experiments and are excluded. The log labels the candidate
+`-DUT_SPRITE_EARLY_CULL`, with OS 0.7.0, core variant 0, 100 MHz, Speed and the
+3,600-frame route. Its association with the preceding `bbea9be` card build follows
+the session/run order; the log itself does not embed an ELF hash.
+
+| Section, work ms/frame | Base before | Cull | Base after | Change vs mean base |
+| --- | ---: | ---: | ---: | ---: |
+| Opening text | 27.4 | 27.2 | 27.4 | -0.73% |
+| Creation | 67.2 | 67.0 | 67.1 | -0.22% |
+| Yard | 27.3 | 27.5 | 27.3 | +0.73% |
+| Field | 44.6 | 45.1 | 44.6 | +1.12% |
+| Menu/attack | 68.7 | 68.3 | 68.4 | -0.36% |
+| Dodge | 80.8 | 80.8 | 81.0 | -0.12% |
+| Next turn | 63.5 | 63.4 | 63.6 | -0.24% |
+
+Full route: 148.8 → 148.7 → 148.7 seconds. Cull saves 0.05 seconds (-0.034%)
+against the control mean, less than the report's 0.1-second display increment.
+There is one candidate run; no repeatability or statistically established gain
+is demonstrated. Field's 0.5-ms penalty is present against both surrounding
+controls. Dodge drawing stays 58.0 ms in all three reports; its held clear/tile
+operation stays 12.1 ms.
+
+| Complete 40x40 sprite probe, µs/call | Cull | Trailing base | Change |
+| --- | ---: | ---: | ---: |
+| Outside view | 2.86 | 5.48 | -47.81% |
+| Whole inside-view draw | 60.34 | 59.08 | +2.13% |
+| Cumulative texture-found stop | 4.80 | 2.90 | +65.52% |
+| Cumulative rasterizer-entry stop | 6.38 | 5.03 | +26.84% |
+
+The offscreen shortcut saves 2.62 µs in this warmed direct-call probe. Bounds
+reuse has not made the whole visible call cheaper than the trailing base. The
+texture-found stop includes candidate geometry work; it does not isolate texture
+lookup. The retained earlier partial probe at line 454 reports whole 60.49 and
+outside 5.47 µs, but its identifying line was dropped. It starts the raw retained
+tail after the archived summaries and precedes the complete cull session. Do not
+attach it to archived cull 363 or treat it as a confirmed base trial. Its spread
+also cautions against assigning a small inside-view delta uniquely to the code.
+
+Field draw rises 30.3 → 30.8 → 30.3 ms/frame. Its sampled sprite category rises
+12.1 → 16.2 → 12.1, while the frequent 40x40 sampled group falls 6.6 → 5.9 → 6.6
+at 74.3 calls/frame. Categories use detail-frame averages, and total draw uses
+all-frame averages; they are not additive. These figures do not establish a
+4.1-ms field penalty or identify a cache/flush cause.
+
+The physical and simulated studies agree that this cull is not an established
+frame-time winner. The simulated field regression is +0.50% versus +1.12% on the
+device; its +0.21% dodge change differs from the device's essentially flat
+result. Treat the harness as a correctness/relative-cost screen, not a numerical
+prediction of whole-route savings. Extracted private evidence is in
+`build/cull-reuse-main-e83/device-base-cull-base.json` and
+`device-base-cull-base-reports.txt`. No source, device tree or SD-card changes
+were made during this log analysis.
 
 ## Local evidence
 
