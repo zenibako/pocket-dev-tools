@@ -1,6 +1,6 @@
 # Deltarune draw-cost experiment: harness and device, 2026-10-10
 
-The cached held-row implementation loses time on both the Pocket and the RTL harness. The surrounding device base runs take 80.1 and 79.9 ms/frame in dodge; rows takes 84.4 ms (+5.5%). The matching harness timing cases take 87.853 and 91.323 simulated ms (+4.0%). Subsequent device runs show a small profiler-control gain and a culling tradeoff: rejected sprites become cheaper, but the full route becomes slower. Test texture fast-hit next; keep rows and the present cull implementation experimental.
+The cached held-row implementation loses time on both the Pocket and the RTL harness. The surrounding device base runs take 80.1 and 79.9 ms/frame in dodge; rows takes 84.4 ms (+5.5%). The matching harness timing cases take 87.853 and 91.323 simulated ms (+4.0%). Subsequent device runs show a small profiler-control gain and a culling tradeoff: rejected sprites become cheaper, but the full route becomes slower. The [fresh screen after rebasing](2026-10-10-remaining-experiments.md) supersedes the initial texture recommendation and tests both games. Keep these implementations experimental.
 
 ## Scope and provenance
 
@@ -81,7 +81,7 @@ The early rejection saves 2.33 µs on the isolated out-of-view draw, while the w
 
 The source at this snapshot computes transformed, rounded bounds in `SWRenderer_drawSprite` for early rejection, then the visible path enters `swrDrawSprite`, which performs the transforms and rounding again. The [completed bounds-reuse follow-up](2026-10-10-cull-reuse-results.md) removes that duplication while preserving the fractional/clipping/flip/rotation checks, after rebasing onto main `e83f1c7`. Fresh base/cull pixels and PCM match, but revised cull is slightly slower in both sampled windows. It remains experimental. The follow-up uses its own same-source controls; it is not a direct comparison with this study's old cull executable.
 
-Next device order: base → tex → base. The first base also supplies the missing trailing cull control. Do not test combo as a proposed improvement while its rows component loses time. The isolated texture experiment remains unmeasured on the device in the supplied attachments.
+The original next-device suggestion was base → tex → base. The [revised cull follow-up](2026-10-10-cull-reuse-results.md) now has its own bracketed device controls, and the [fresh texture/profiler screen](2026-10-10-remaining-experiments.md) narrows texture's next device question to the field section. Do not test combo as a proposed improvement while its rows component loses time. The isolated texture experiment remains unmeasured on the device in the supplied attachments.
 
 Extracted evidence stays private in `build/draw-cost-0134/device-prof-cull.json` and `device-prof-cull-reports.txt`; calculations are checked against the selected source report lines. No new ELF, source change or SD-card copy is part of this log analysis.
 

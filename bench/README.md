@@ -20,6 +20,12 @@ The [transformed-bounds cull follow-up](2026-10-10-cull-reuse-results.md) compar
 base and revised cull after rebasing onto main `e83f1c7`, with fresh dodge/field
 cases. Outputs match; cull is slightly slower in both timing samples.
 
+The [remaining experiment screen](2026-10-10-remaining-experiments.md) uses fresh
+same-source controls at `bbea9be`, after rebasing onto main `e83f1c7`. Texture
+fast-hit and profiler compile-out pass both games' sampled output checks. Texture
+helps only the field sample modestly; profiler removal saves Deltarune time but
+loses script diagnostics. Neither is established as a shared default improvement.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
