@@ -13,7 +13,7 @@ both function rankings.
 
 The [draw-cost comparison](2026-10-10-draw-cost-results.md) records all seven
 experiment switches at revision 0134a2f, verified frame replays, and the device
-base → rows → base control pair. These are three-frame simulated samples;
+rows, profiler and early-culling controls. These are three-frame simulated samples;
 the device measurements cover complete benchmark sections.
 
 ## Export and run revisions

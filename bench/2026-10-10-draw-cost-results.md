@@ -1,6 +1,6 @@
 # Deltarune draw-cost experiment: harness and device, 2026-10-10
 
-The cached held-row implementation loses time on both the Pocket and the RTL harness. The surrounding device base runs take 80.1 and 79.9 ms/frame in dodge; rows takes 84.4 ms (+5.5%). The matching harness timing cases take 87.853 and 91.323 simulated ms (+4.0%). Keep the current rows change experimental. Test the profiler control next, then early culling.
+The cached held-row implementation loses time on both the Pocket and the RTL harness. The surrounding device base runs take 80.1 and 79.9 ms/frame in dodge; rows takes 84.4 ms (+5.5%). The matching harness timing cases take 87.853 and 91.323 simulated ms (+4.0%). Subsequent device runs show a small profiler-control gain and a culling tradeoff: rejected sprites become cheaper, but the full route becomes slower. Test texture fast-hit next; keep rows and the present cull implementation experimental.
 
 ## Scope and provenance
 
@@ -55,7 +55,35 @@ Full route: 147.7 s → 150.4 s → 147.6 s, +1.86% against the mean control. In
 
 The rows device microprobe reports whole draw 63.78 µs and out-of-view 6.50 µs, versus 59.16 and 5.08 µs in the final base run. These end-of-route microprobes were not replayed by the frame cases in this study. Their slowdown does not identify an instruction-cache cause.
 
-Run base → prof → base next, then base → cull → base if useful. The current prof card entry has an unlabelled base-like report header, so retain the run order. Neither tiny simulated gain is sufficient to adopt an optimization.
+The subsequent device controls below supersede the initial recommendation to test prof and cull. The previous statement that the prof card report lacked an identifying header was incorrect: the new attachment explicitly labels `-UENABLE_VM_GML_PROFILER`.
+
+## Subsequent device profiler and culling controls
+
+Attachment SHA-256: `4c2502d316f237fe3e6b171c797481dcd3735b1ad77ed0a82c7c4a67067d8fae`. The selected reports are base at line 183, prof at 273, base at 1122, and cull at 1873. The base report at 363 is byte-identical to the one at 1122; it is one run, not two controls. These runs retain OS 0.7.0, core variant 0, 100 MHz and the 3,600-frame Speed route. Prof uses the mean surrounding controls; cull currently has only its preceding control.
+
+| Section, work ms/frame | Prof base mean | Prof | Change | Cull preceding base | Cull | Change |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Field | 44.35 | 43.8 | -1.24% | 44.4 | 45.0 | +1.35% |
+| Menu/attack | 67.45 | 66.9 | -0.82% | 67.5 | 67.3 | -0.30% |
+| Dodging | 79.90 | 79.7 | -0.25% | 79.8 | 79.8 | 0.00% |
+| Next turn | 62.80 | 62.7 | -0.16% | 62.9 | 62.9 | 0.00% |
+| Full route, seconds | 147.65 | 146.8 | -0.58% | 147.7 | 148.6 | +0.61% |
+
+Disabling GML profiling produces small improvements in all seven sections, with a dodge step reduction from 17.3 to 17.1 ms/frame and virtually unchanged drawing. The measured dodge saving is 0.2 ms, much smaller than the harness timing sample's 1.510 ms (-1.72%). One bracketed run supports a small overhead cost; it does not establish repeatability or validate the harness delta as a physical prediction.
+
+| Device sprite probe, µs/call | Base | Cull | Change |
+| --- | ---: | ---: | ---: |
+| Out of view | 5.08 | 2.75 | -45.87% |
+| Whole inside-view draw | 59.09 | 61.06 | +3.33% |
+| Cumulative texture-found stop | 2.66 | 4.68 | +75.94% |
+
+The early rejection saves 2.33 µs on the isolated out-of-view draw, while the whole inside-view draw grows by 1.97 µs. The texture-found stop now includes the early geometry work, so its increase is not a measurement of texture lookup alone. This is a working rejection shortcut, not an established frame-time optimization. The three-frame harness cull result (-0.58%) misses the whole-route device outcome; even the device dodge section is unchanged at the printed precision. Preserve the distinction between isolated calls, three sampled frames and section/route means.
+
+The source at this snapshot computes transformed, rounded bounds in `SWRenderer_drawSprite` for early rejection, then the visible path enters `swrDrawSprite`, which performs the transforms and rounding again. A useful follow-up experiment would reuse those exact bounds through the visible path, with the existing fractional/clipping/flip/rotation checks. That is a hypothesis to test, not a claim that the repeated work explains the entire regression. It follows the independent controls in the [game experiment plan](../../butterscotch-draw-experiments/src/openfpga/docs/2026-10-10-draw-cost-experiments.md).
+
+Next device order: base → tex → base. The first base also supplies the missing trailing cull control. Do not test combo as a proposed improvement while its rows component loses time. The isolated texture experiment remains unmeasured on the device in the supplied attachments.
+
+Extracted evidence stays private in `build/draw-cost-0134/device-prof-cull.json` and `device-prof-cull-reports.txt`; calculations are checked against the selected source report lines. No new ELF, source change or SD-card copy is part of this log analysis.
 
 ## Verification and local evidence
 
