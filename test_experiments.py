@@ -10,6 +10,23 @@ import unittest
 import experiments
 
 
+class CompilerSwitchTest(unittest.TestCase):
+    def test_define_and_undefine_order_is_preserved(self):
+        self.assertEqual(experiments.compiler_switches('-DUT_CACHED_HELD_ROWS -DENABLE_VM_GML_PROFILER -UENABLE_VM_GML_PROFILER'),
+                         ['-DUT_CACHED_HELD_ROWS', '-DENABLE_VM_GML_PROFILER', '-UENABLE_VM_GML_PROFILER'])
+
+    def test_numeric_defines_and_empty_control(self):
+        self.assertEqual(experiments.compiler_switches(''), [])
+        self.assertEqual(experiments.compiler_switches('-DCOUNT=2000 -DRATE=0.5'), ['-DCOUNT=2000', '-DRATE=0.5'])
+
+    def test_file_plugin_shell_and_split_arguments_are_rejected(self):
+        for flags in ['-include /tmp/code.h', '-o /tmp/program', '-fplugin=code',
+                      '-Wl,-T,/tmp/link.ld', '-D NAME', '-UFOO=1', '-DNAME=$(id)',
+                      '-DNAME=@file', '-DNAME=/tmp/file']:
+            with self.subTest(flags=flags), self.assertRaises(ValueError):
+                experiments.compiler_switches(flags)
+
+
 class ComparisonTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

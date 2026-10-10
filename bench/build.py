@@ -101,6 +101,9 @@ def build(game, variant, compiler):
             'int of_file_async_poll(void);\nint of_file_async_busy(void);\n')
     if config['alignment']:
         app_flags += ['-falign-functions=64', '-falign-loops=64']
+    # Apply after the port defaults so an explicit -U can disable a profiler.
+    # Ordered tokens are recorded in the case identity and build metadata.
+    app_flags += config.get('extra_cflags', [])
     defines = ['FRAME_TARGET=' + str(config['first_frame'] - 1),
                'FRAME_DISABLE_NATIVE=' + str(int(config['native'] == 'disabled')),
                'FRAME_TIMING=' + str(int(config['kind'] == 'timing')),

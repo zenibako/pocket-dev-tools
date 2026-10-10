@@ -11,6 +11,11 @@ the case’s firmware, checkpoints, frame cycles and output oracles; see the
 [f1d8542 Speed results](../cacheprobe/RESULTS.md) for measured refill tails and
 both function rankings.
 
+The [draw-cost comparison](2026-10-10-draw-cost-results.md) records all seven
+experiment switches at revision 0134a2f, verified frame replays, and the device
+base → rows → base control pair. These are three-frame simulated samples;
+the device measurements cover complete benchmark sections.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
@@ -97,6 +102,13 @@ They do not cover every frame in those sections or every battle.
   review's description of the measured card. This extension's `port` default
   intentionally follows the request for no extra alignment. Exact card flag
   parity remains unverified.
+- `--extra-cflags='-DUT_CACHED_HELD_ROWS'` applies ordered experiment defines
+  and undefines after the port defaults. Only single `-DNAME[=VALUE]` and
+  `-UNAME` tokens are accepted; include, output, plugin and linker options
+  are rejected. The exact tokens participate in case identity and appear in
+  build metadata. For the profiler control use
+  `--extra-cflags='-UENABLE_VM_GML_PROFILER'`. These switches create independent
+  builds from the same frozen revision; they do not change source snapshots.
 
 ## Optional cost assumptions
 
