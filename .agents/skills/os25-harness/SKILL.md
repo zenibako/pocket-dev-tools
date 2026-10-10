@@ -39,6 +39,14 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 | Complete battle frames | `python3 fullframe/run.py run`; `build/fullframe/results.json` after `python3 fullframe/report.py` | Consecutive real game-loop iterations, all reached scripts/builtins, collision, software rendering and audio mixing |
 | Revision experiments | `python3 experiments.py`; [bench/README.md](../../../bench/README.md) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
 | Passive cache/pipeline profile | `python3 cache_profile.py --case EXACT_CASE`; [cacheprobe/README.md](../../../cacheprobe/README.md) | I/D refills, architectural retirement/CPI, dependencies, FPU/divider/store-buffer waits and branch recovery; unchanged CPU/firmware in independent copies |
+| Sprite-culling microprobe | `python3 sprite_probe.py --snapshot NAME`; [spriteprobe/README.md](../../../spriteprobe/README.md) | Pinned staged renderer probe, renderer/GML profiling disabled, 24 repeated call batches with strict oracles and passive pipeline counters |
+
+Microprobe intervals are batches of direct renderer calls, not complete game
+frames. Require both disabled-observer and corrupted-oracle controls from the
+same case. Record sprite selection, view/scale geometry, warm-up, compiler,
+alignment and snapshot revision. Do not claim a physical probe's timing was
+reproduced merely because the simulated workload passes. Device binary and
+checkpoint parity are separate evidence.
 
 The event workload excludes real rendering and mixing; its cycles cannot stand
 in for battle frame time. The original complete-frame workload covers Undertale

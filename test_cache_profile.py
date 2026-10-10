@@ -14,6 +14,16 @@ class CacheObserverTest(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name)
 
+    def test_explicit_probe_count_preserves_three_frame_default(self):
+        raw=self.root/'probe.csv'
+        raw.write_text('\n'.join('F,'+','.join(map(str,[i,i*10,(i+1)*10,10]+[0]*10)) for i in range(24)))
+        expected=[dict(cycles=10,oracle=[i]) for i in range(24)]
+        self.assertEqual(len(cache_profile.parse(raw,expected,[],expected_count=24)['frames']),24)
+        with self.assertRaisesRegex(ValueError,'Incomplete'):
+            cache_profile.parse(raw,expected,[])
+        with self.assertRaisesRegex(ValueError,'Incomplete'):
+            cache_profile.parse(raw,expected[:-1],[],expected_count=24)
+
     def test_real_monitor_handles_backpressure_ids_overlap_and_exact_boundaries(self):
         fields=[]
         for cache in ['i','d']:

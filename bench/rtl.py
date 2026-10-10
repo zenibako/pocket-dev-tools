@@ -17,7 +17,9 @@ def prepare(game,variant):
  image=bytearray((d/'repeat-0/checkpoint.bin').read_bytes())
  with (d/'program.elf').open('rb') as f:
   elf=ELFFile(f);syms={s.name:s.entry.st_value for s in elf.get_section_by_name('.symtab').iter_symbols()};bram=bytearray(struct.pack('<I',0x13)*8192)
-  loop=syms['executeLoop']
+  loops=[value for name,value in syms.items() if name=='executeLoop' or name.startswith('executeLoop.constprop.')]
+  if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
+  loop=loops[0]
   if variant=='bram' and not 0x4000<=loop<0x7800:raise RuntimeError('Interpreter was not placed in application BRAM')
   if variant=='sdram' and not 0x10400000<=loop<0x10800000:raise RuntimeError('Interpreter was not placed in SDRAM')
   if syms['_rtl_start']!=0x10400000 or elf.header.e_entry!=syms['_host_start']:raise RuntimeError('Invalid dual boot entry points')
@@ -25,11 +27,14 @@ def prepare(game,variant):
   for s in elf.iter_sections():
    if s.header.sh_flags&2 and s.header.sh_size and 0x4000<=s.header.sh_addr<0x7800:
     bram[s.header.sh_addr:s.header.sh_addr+s.header.sh_size]=s.data()
-  address=syms['frame_expected'];struct.pack_into('<24I',image,address-0x10400000,*[x for r in manifest['rows'] for x in r])
+  address=syms['frame_expected'];words=[x for r in manifest['rows'] for x in r]
+  expected_symbol=next(s for s in elf.get_section_by_name('.symtab').iter_symbols() if s.name=='frame_expected')
+  if len(words)*4!=expected_symbol.entry.st_size:raise RuntimeError('Expected-oracle storage does not match captured sample count')
+  struct.pack_into('<'+str(len(words))+'I',image,address-0x10400000,*words)
  if (d/'repeat-0/framebuffer.bin').is_file():(d/'framebuffer.bin').write_bytes((d/'repeat-0/framebuffer.bin').read_bytes())
  (d/'program.bin').write_bytes(image);(d/'stack.bin').write_bytes((d/'repeat-0/stack.bin').read_bytes())
  text='WIDTH=32;\nDEPTH=8192;\nADDRESS_RADIX=DEC;\nDATA_RADIX=HEX;\nCONTENT BEGIN\n'+''.join(f'{i} : {w[0]:08x};\n' for i,w in enumerate(struct.iter_unpack('<I',bram)))+'END;\n';(d/'firmware.mif').write_text(text)
- save(d/'prepared.json',dict(image_sha256=sha(d/'program.bin'),stack_sha256=sha(d/'stack.bin'),bram_sha256=sha(d/'firmware.mif'),capture_sha256=sha(d/'capture.json'),expected_address=address,heap_info=struct.unpack('<3I',(d/'repeat-0/checkpoint-info.bin').read_bytes()),execute_loop_address=syms['executeLoop'],elf_sha256=sha(d/'program.elf'),framebuffer_sha256=sha(d/'framebuffer.bin') if (d/'framebuffer.bin').is_file() else None))
+ save(d/'prepared.json',dict(image_sha256=sha(d/'program.bin'),stack_sha256=sha(d/'stack.bin'),bram_sha256=sha(d/'firmware.mif'),capture_sha256=sha(d/'capture.json'),expected_address=address,heap_info=struct.unpack('<3I',(d/'repeat-0/checkpoint-info.bin').read_bytes()),execute_loop_address=loop,elf_sha256=sha(d/'program.elf'),framebuffer_sha256=sha(d/'framebuffer.bin') if (d/'framebuffer.bin').is_file() else None))
  print('Prepared',game,variant,len(image),'bytes, heap cursor',hex(0x10400000+len(image)),flush=True)
 
 def rtl(jobs):
@@ -125,6 +130,7 @@ def run(game,variant,traffic,negative=False):
  for m in re.finditer(r'^FRAMERESULT (\d+) (\d+) ([0-9a-f]+) ([0-9a-f]+) ([0-9a-f]+) (\d+) (\d+) (\d+) ([0-9a-f]+)$',uart,re.M):
   f,c,s,p,a,n,o,e,t=m.groups();row=[int(f),int(s,16),int(p,16),int(a,16),int(n),int(o),int(e),int(t,16)];rows.append(dict(oracle=row,cycles=int(c),simulated_ms=int(c)/100000))
  config=capture['build']['config'];ignored={3} if config['kind']=='timing' else set()
+ if config.get('workload')=='sprite-probe':ignored=set()
  if config['audio']=='realtime':ignored.update([3,4])
  if len(rows)!=len(capture['rows']) or any(r['cycles']<=0 or any(r['oracle'][i]!=expected[i] for i in range(8) if i not in ignored) for r,expected in zip(rows,capture['rows'])):raise RuntimeError('Full-frame results do not match capture')
  costs=[dict(frame=int(f),clock_reads=int(c),audio_pairs_consumed=int(n),audio_underrun_pairs=int(u)) for f,c,n,u in re.findall(r'^FRAMECOST (\d+) (\d+) (\d+) (\d+)$',uart,re.M)]

@@ -252,7 +252,9 @@ def checked_capture(root):
                 raise ValueError('Capture artifact changed: ' + name)
         for index, row in enumerate(manifest['rows']):
             name = f'frame-{index}.pcm'
-            if (directory / f'repeat-{repeat}' / name).stat().st_size != row[4] * 4:
+            # Probe rows reuse field 4 for call count, and suppress audio entirely.
+            pcm_pairs = 0 if config.get('workload') == 'sprite-probe' else row[4]
+            if (directory / f'repeat-{repeat}' / name).stat().st_size != pcm_pairs * 4:
                 raise ValueError('PCM count disagrees with raw samples')
     return config, directory, manifest
 

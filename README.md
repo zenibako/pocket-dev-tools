@@ -42,6 +42,11 @@ cover traced and untraced full-frame windows from both games.
 load and other operand dependencies, FPU/divider freezes, store-buffer waits and
 branch recovery. The original cache evidence remains preserved separately.
 
+[Sprite microprobe](spriteprobe/README.md) replays a pinned branch's staged
+renderer probe with renderer/GML profiling disabled. Its separate
+[results](spriteprobe/RESULTS.md) break down direct call cycles, native CPI,
+cache refills and pipeline waits; these are simulated batch timings.
+
 ## Run
 
 From this directory, with Python 3, Docker/Colima and host Clang installed.

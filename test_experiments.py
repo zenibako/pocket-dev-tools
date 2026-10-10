@@ -84,6 +84,31 @@ class ComparisonTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'PCM count'):
             self.compare(a, b)
 
+    def test_probe_calls_are_not_mistaken_for_pcm_and_audio_must_be_empty(self):
+        root = self.case('probe')
+        config_path = root / 'experiment.json'
+        config = json.loads(config_path.read_text())
+        config['workload'] = 'sprite-probe'
+        config_path.write_text(json.dumps(config))
+        path = root / 'build/fullframe/deltarune/bram/capture.json'
+        manifest = json.loads(path.read_text())
+        for row in manifest['rows']:
+            row[4] = 2000
+        for repeat, files in enumerate(manifest['repeats']):
+            folder = path.parent / f'repeat-{repeat}'
+            for index in range(3):
+                name = f'frame-{index}.pcm'
+                (folder / name).write_bytes(b'')
+                files[name] = experiments.sha(folder / name)
+        path.write_text(json.dumps(manifest))
+        experiments.checked_capture(root)
+        audio = path.parent / 'repeat-1/frame-0.pcm'
+        audio.write_bytes(b'\0' * 4)
+        manifest['repeats'][1][audio.name] = experiments.sha(audio)
+        path.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, 'PCM count'):
+            experiments.checked_capture(root)
+
     def test_speed_and_accuracy_are_not_silently_compared(self):
         with self.assertRaisesRegex(ValueError, 'mode'):
             self.compare(self.case('a'), self.case('b', mode='speed'))

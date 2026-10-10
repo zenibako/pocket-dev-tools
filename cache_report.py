@@ -94,7 +94,7 @@ def checked_result(path):
     if probe['cpu_parameter_changes'] or actual_cpu != probe['cpu_sha256']:
         raise ValueError('Expected the unchanged production CPU')
     profile = cache_profile.parse(path.parent/'cache-profile.csv', result['rows'],
-                                  cache_profile.symbols(path.parent/'program.elf'))
+                                  cache_profile.symbols(path.parent/'program.elf'),expected_count=config.get('probe_samples',3))
     if profile != meta['profile']:
         raise ValueError('Stored analysis disagrees with fresh raw-event analysis')
     frames = profile['frames']

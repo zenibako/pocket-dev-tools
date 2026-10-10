@@ -67,7 +67,7 @@ def union_cycles(intervals, begin, end):
     return total
 
 
-def parse(path, expected, function_symbols):
+def parse(path, expected, function_symbols, *, expected_count=3):
     pipeline_records=[]
     frames=[];holds=defaultdict(list);refills=[];unfinished=[];recoveries=[];pending_misses=[]
     for row in csv.reader(path.read_text().splitlines()):
@@ -89,7 +89,7 @@ def parse(path, expected, function_symbols):
             (refills if row[0]=='R' else unfinished).append(item)
         elif row[0] in ['P','S','T','B','V']:pipeline_records.append(row)
         else:raise ValueError('Unknown cache profile record')
-    if len(frames)!=len(expected) or len(frames)!=3:raise ValueError('Incomplete cache profile window')
+    if len(frames)!=len(expected) or len(frames)!=expected_count:raise ValueError('Incomplete cache profile window')
     attribution=Attribution(function_symbols)
     aggregate=defaultdict(lambda:dict(refills=0,transaction_cycles=0,i_block_cycles=0,i_block_no_commit_cycles=0))
     address_histogram=defaultdict(Counter)
@@ -174,7 +174,9 @@ def run(args):
     functions=symbols(directory/'program.elf')
     bounds={f['name']:f for f in functions}
     version=observer_hash()
-    platform=PRIVATE/('platform-'+version)
+    source_platform=json.loads((source/'build/fullframe/rtl/rtl.json').read_text())
+    platform_key=hashlib.sha256(json.dumps({k:source_platform[k] for k in ['generator_sha256','leaf_rtl_sha256']},sort_keys=True).encode()).hexdigest()[:16]
+    platform=PRIVATE/('platform-'+version+'-'+platform_key)
     if not platform.exists():
         experiments.copy_tree(source,platform)
         shutil.copytree(ROOT/'cacheprobe',platform/'cacheprobe',ignore=shutil.ignore_patterns('__pycache__'))
@@ -196,7 +198,7 @@ def run(args):
                           *(['--negative'] if args.negative else []))
     env=['CACHE_PROFILE='+str(int(not args.disabled)),
          *[f'CACHE_{key}_{side}={bounds[name]["address"]+(bounds[name]["size"] if side=="HI" else 0)}'
-           for key,name in [('BEGIN','frame_begin'),('END','frame_end')] for side in ['LO','HI']]]
+           for key,name in [('BEGIN',config.get('probe_begin_symbol','frame_begin')),('END',config.get('probe_end_symbol','frame_end'))] for side in ['LO','HI']]]
     # Place Docker environment options before its image name.
     image=cmd.index('undertale-vm-os25-frames:local')
     cmd[image:image]=[item for value in env for item in ['-e',value]]
@@ -208,11 +210,11 @@ def run(args):
         raise ValueError('Passive observer changed frame timing or oracle values')
     profile=None
     if not args.disabled and not args.negative:
-        profile=parse(target/'cache-profile.csv',result['rows'],functions)
+        profile=parse(target/'cache-profile.csv',result['rows'],functions,expected_count=config.get('probe_samples',3))
     result['cache_profile']=dict(enabled=not args.disabled,source_case=str(source),
         source_result_sha256=experiments.sha(directory/(args.traffic+'-results.json')),
         observer_version=version,analyzer_sha256=experiments.sha(ROOT/'cache_profile.py'),
-        pipeline_analyzer_sha256=experiments.sha(ROOT/'pipeline_analysis.py'),clock_bounds={name:bounds[name] for name in ['frame_begin','frame_end']},
+        pipeline_analyzer_sha256=experiments.sha(ROOT/'pipeline_analysis.py'),clock_bounds={name:bounds[name] for name in [config.get('probe_begin_symbol','frame_begin'),config.get('probe_end_symbol','frame_end')]},
         unchanged_frame_cycles_and_oracles=not args.negative,
         raw_sha256=experiments.sha(target/'cache-profile.csv') if not args.disabled else None,
         elf_sha256=experiments.sha(target/'program.elf'),profile=profile)
