@@ -40,6 +40,15 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 | Revision experiments | `python3 experiments.py`; [bench/README.md](../../../bench/README.md) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
 | Passive cache/pipeline profile | `python3 cache_profile.py --case EXACT_CASE`; [cacheprobe/README.md](../../../cacheprobe/README.md) | I/D refills, architectural retirement/CPI, dependencies, FPU/divider/store-buffer waits and branch recovery; unchanged CPU/firmware in independent copies |
 | Sprite-culling microprobe | `python3 sprite_probe.py --snapshot NAME`; [spriteprobe/README.md](../../../spriteprobe/README.md) | Pinned staged renderer probe, renderer/GML profiling disabled, 24 repeated call batches with strict oracles and passive pipeline counters |
+| Identical-ELF hardware calibration | `python3 calibration.py`; [calibration/README.md](../../../calibration/README.md) | One normal SDK ELF with separate bare RTL entry, asset-free arithmetic/memory/renderer probes, 72 intervals, QEMU/RTL oracles and prepared hardware payload |
+
+Calibration preparation is isolated and never implies installation. Require
+both repeated QEMU references, negative QEMU/RTL oracles, quiet observer on/off
+equality and diagnostic scanout before its report/hardware bundle. Preserve the
+same ELF hash for device testing; `compare` validates a supplied hardware log
+against that ELF and reference. Record the actual core/OS identity separately.
+Measured addresses match, but kernel startup, interrupts and display/audio
+activity differ. No logging/validation occurs between calibration intervals.
 
 Microprobe intervals are batches of direct renderer calls, not complete game
 frames. Require both disabled-observer and corrupted-oracle controls from the

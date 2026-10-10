@@ -94,6 +94,11 @@ The public-image Docker configuration is private to `build/docker-config`.
 
 ## Coverage and oracles
 
+For matching hardware/RTL calibration, see [calibration/README.md](calibration/README.md).
+It prepares one SDK application ELF for both environments, with arithmetic,
+memory/cache and staged sprite probes. Hardware execution is a separate step;
+preparation writes only a new private harness case and never deploys to the card.
+
 Both BC16 (Undertale) and BC17 (Deltarune Chapter 1) are compiled into the same
 image. The bytecode fixtures use real `VM_executeCode` and production value,
 instance, array/method and hash-map code. The interpreter sources are unchanged.
