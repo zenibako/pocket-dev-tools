@@ -33,6 +33,11 @@ For revision snapshots, baseline/candidate pixel and PCM comparison, separate
 traced/timing executables, Speed mode and optional cost assumptions, use
 [Revision experiments](bench/README.md). The original baseline is preserved.
 
+[Passive cache profiling](cacheprobe/README.md) counts real I/D refill handshakes,
+pipeline blocking and measured latency distributions, and attributes I-cache
+traffic to ELF functions. [Frozen Speed-mode results](cacheprobe/RESULTS.md)
+cover traced and untraced full-frame windows from both games.
+
 ## Run
 
 From this directory, with Python 3, Docker/Colima and host Clang installed.

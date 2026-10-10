@@ -5,6 +5,12 @@ workflow in [fullframe/README.md](../fullframe/README.md). The original tooling,
 frozen inputs and baseline evidence remain unchanged. These experiments use the
 same pinned os25 CPU and memory RTL with independent source snapshots.
 
+For cache diagnostics on an already verified case, use the separate
+[passive observer](../cacheprobe/README.md). Its independent copies preserve
+the case’s firmware, checkpoints, frame cycles and output oracles; see the
+[f1d8542 Speed results](../cacheprobe/RESULTS.md) for measured refill tails and
+both function rankings.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the

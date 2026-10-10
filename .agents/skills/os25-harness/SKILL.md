@@ -1,6 +1,6 @@
 ---
 name: os25-harness
-description: Run the isolated os25 RV32/Verilator harness for Undertale and Deltarune Chapter 1. Use for revision regression comparison, traced/timing frame replay, Speed mode, and CPU/cache/memory experiments without the active checkout or SD card.
+description: Run the isolated os25 RV32/Verilator harness for Undertale and Deltarune Chapter 1. Use for revision output comparison, traced/timing frame replay and passive cache refill profiling without the active checkout or SD card.
 ---
 
 # Testing with the os25 CPU and memory RTL
@@ -38,6 +38,7 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 | Synthetic and captured VM events | `python3 run.py all --jobs 4`; `build/results.json` | BC16/BC17 interpreter and value/variable handling; six captured leaf events use checked builtin transcripts |
 | Complete battle frames | `python3 fullframe/run.py run`; `build/fullframe/results.json` after `python3 fullframe/report.py` | Consecutive real game-loop iterations, all reached scripts/builtins, collision, software rendering and audio mixing |
 | Revision experiments | `python3 experiments.py`; [bench/README.md](../../../bench/README.md) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
+| Passive cache profile | `python3 cache_profile.py --case EXACT_CASE`; [cacheprobe/README.md](../../../cacheprobe/README.md) | I/D refill counts/distributions, cache pipeline blocking, I-cache ELF attribution; unchanged CPU/firmware in independent measurement copies |
 
 The event workload excludes real rendering and mixing; its cycles cannot stand
 in for battle frame time. The original complete-frame workload covers Undertale
@@ -79,6 +80,33 @@ fields are explicitly excluded; cross-build comparison refuses realtime cases.
 Use fixed audio for regression checks, and report underruns as simulated.
 Timing ELFs omit per-opcode/event hooks and in-loop PCM hashing; pair a traced
 case with timing evidence when checking audio correctness.
+
+## Attribute cache costs
+
+Use the exact experiment case path and check its configuration before profiling;
+revision/window/build-kind names alone do not distinguish memory placement,
+compiler or native settings. `cache_profile.py` requires an existing successful
+replay for the selected traffic. It creates a new private measurement copy and
+rejects any changed frame cycles/oracles. `--disabled` checks the runtime switch;
+`--negative` checks bad-state rejection. Keep original cases and old observer
+versions as evidence. No CPU parameter changes are made by this observer.
+
+Read the [counter definitions](../../../cacheprobe/README.md) before interpreting
+a result. I-cache full transaction latency includes speculative/prefetch
+traffic and overlapping responses; its sum is not frame stall. The fetch hold
+alone misses REDO/flush/retry cost. Use the union of fetch hold and the passive
+shadow of the pinned CPU's miss-recovery waiting event, separately from the D
+refill waiter and I/D overlap. Instructions can commit during a block; even the
+no-commit subset is observational rather than uniquely causal lost cycles.
+Rank refill line bases and blocked/missing PCs separately, leaving ELF padding
+unattributed. Check both traced and timing builds; tracing changes code/layout.
+
+`cache_report.py` verifies/reanalyses raw CSV, ELF, simulator, copied observer,
+source replay and capture evidence before generating the named baseline study.
+The [f1d8542 results](../../../cacheprobe/RESULTS.md) show the scope and limitations;
+frame-wide shares do not settle the isolated device sprite-culling hypothesis.
+Any free/unlimited-cache or ordering experiment needs its own recorded changes
+and verified evidence; do not infer its speedup from summed bus latency.
 
 ## Run or rebuild complete frames
 
