@@ -6,8 +6,11 @@ import cache_profile,cache_report,experiments,pipeline_report
 ROOT=experiments.ROOT
 PRIVATE=ROOT/'experiments/calibrations'
 STAGES={0:'inside',1:'door',2:'texture-found',3:'drawing-entered',4:'clipped',5:'setup',6:'layers-flushed',7:'outside'}
+SAVE_FILE='calibration_log.sav'
 
 def parse(text,mode):
+    # Pocket save slots keep old bytes beyond the terminating NUL.
+    text=text.split('\0',1)[0].replace('\r\n','\n')
     if 'FRAMEHARNESS FAIL' in text:raise ValueError('Failed calibration')
     if '=== UART BEGIN ===' in text:
         blocks=re.findall(r'=== UART BEGIN ===\n(.*?)\n=== UART END ===',text,re.S)
@@ -47,6 +50,10 @@ def checked_reference(d):
     for i in range(2):
         if parse((d/f'reference-{i}.log').read_text(),'reference')!=ref['result']:
             raise ValueError('Stored reference differs from raw log')
+        if 'save_checks' in ref:
+            saved=(d/f'reference-{i}'/SAVE_FILE).read_bytes()
+            if not saved.endswith(b'\0') or saved.count(b'\0')!=1 or parse(saved.decode(),'reference')!=ref['result']:
+                raise ValueError('Invalid saved reference')
     if 'FRAMEHARNESS FAIL calibration independent result oracle' not in (d/'negative-reference.log').read_text():
         raise ValueError('Missing negative reference rejection')
     return ref['result']
@@ -66,7 +73,9 @@ def create(args):
                 cpu_sha256=record['evidence']['cpu_sha256'],observer_version=record['evidence']['observer_version'],
                 measured_binary='same ELF for Pocket and RTL',renderer_profiling=False,gml_profiling=False,
                 validation='after_all_72_intervals',clock='MMIO 0x40000004',expected_cpu_hz=100000000,
-                fixture='generated 40x40 sprite, cached 320x240 framebuffer, half-scale',sprite_order=[6,5,4,3,2,1,0,7])
+                fixture='generated 40x40 sprite, cached 320x240 framebuffer, half-scale',sprite_order=[6,5,4,3,2,1,0,7],
+                save_log=dict(filename=SAVE_FILE,slot=11,transport='benchmark fopen/fwrite/NUL/fclose',
+                              phase='after_all_72_intervals',history='latest_run',rtl_file_write=False))
     import hashlib
     config['id']=hashlib.sha256(json.dumps(config,sort_keys=True).encode()).hexdigest()[:16]
     case=PRIVATE/('cal-'+config['id'])
@@ -109,21 +118,40 @@ def checked(case):
     return d,build,rtl
 
 def reference(case):
-    d,build,_=checked(case);runs=[]
+    d,build,_=checked(case);runs=[];artifacts=[]
     for i in range(2):
         path=d/f'reference-{i}.log'
         if path.exists():raise ValueError('Preserve previous reference evidence')
-        with path.open('w') as log:subprocess.run(experiments.docker(case,'qemu-riscv32','-B','0x100000000','/work/build/calibration/app.elf','--reference'),stdout=log,stderr=subprocess.STDOUT,check=True)
+        work=d/f'reference-{i}';work.mkdir()
+        command=f'cd /work/{work.relative_to(case)} && qemu-riscv32 -B 0x100000000 /work/build/calibration/app.elf --reference'
+        with path.open('w') as log:subprocess.run(experiments.docker(case,'sh','-c',command),stdout=log,stderr=subprocess.STDOUT,check=True)
         runs.append(parse(path.read_text(),'reference'))
+        saved=work/SAVE_FILE;data=saved.read_bytes()
+        if not data.endswith(b'\0') or data.count(b'\0')!=1 or len(data)>16385:raise ValueError('Invalid reference save text/NUL')
+        expected=''.join(line for line in path.read_text().splitlines(keepends=True) if not line.startswith('CALSAVE ')).encode()+b'\0'
+        if data!=expected or parse(data.decode(),'reference')!=runs[-1]:raise ValueError('Saved log differs from stdout')
+        artifacts.append(saved)
     if runs[0]!=runs[1] or experiments.sha(d/'reference-0.log')!=experiments.sha(d/'reference-1.log'):
         raise ValueError('QEMU calibration reference was not repeatable')
     path=d/'negative-reference.log'
-    with path.open('w') as log:p=subprocess.run(experiments.docker(case,'qemu-riscv32','-B','0x100000000','/work/build/calibration/app.elf','--negative-reference'),stdout=log,stderr=subprocess.STDOUT)
+    work=d/'negative-reference';work.mkdir()
+    command=f'cd /work/{work.relative_to(case)} && qemu-riscv32 -B 0x100000000 /work/build/calibration/app.elf --negative-reference'
+    with path.open('w') as log:p=subprocess.run(experiments.docker(case,'sh','-c',command),stdout=log,stderr=subprocess.STDOUT)
     if p.returncode!=2 or 'FRAMEHARNESS FAIL calibration independent result oracle' not in path.read_text():
         raise ValueError('QEMU failed to reject the corrupt oracle')
     if runs[0]['build_id']!=build['config']['id']:raise ValueError('Reference belongs to a different binary')
-    experiments.save(d/'reference.json',dict(result=runs[0],logs={p.name:experiments.sha(p) for p in d.glob('*reference*.log')}))
-    print('PASS two identical QEMU references and rejected negative oracle',flush=True)
+    saved=work/SAVE_FILE
+    if 'FRAMEHARNESS FAIL calibration independent result oracle' not in saved.read_text():raise ValueError('Failed run not saved')
+    artifacts.append(saved)
+    work=d/'save-failure-reference';work.mkdir();(work/SAVE_FILE).mkdir()
+    path=d/'save-failure-reference.log'
+    command=f'cd /work/{work.relative_to(case)} && qemu-riscv32 -B 0x100000000 /work/build/calibration/app.elf --reference'
+    with path.open('w') as log:p=subprocess.run(experiments.docker(case,'sh','-c',command),stdout=log,stderr=subprocess.STDOUT)
+    if p.returncode!=2 or 'FRAMEHARNESS FAIL calibration save log write' not in path.read_text() or 'CALIBRATION PASS' in path.read_text():
+        raise ValueError('Save failure did not fail closed')
+    experiments.save(d/'reference.json',dict(result=runs[0],logs={str(p.relative_to(d)):experiments.sha(p) for p in [*d.glob('*reference*.log'),*artifacts]},
+        save_checks=dict(saved_text_matches_stdout=True,failed_run_saved=True,save_failure_rejected=True)))
+    print('PASS repeated QEMU/saved logs, negative oracle and rejected save failure',flush=True)
 
 def replay(case,traffic='quiet',disabled=False,negative=False):
     d,build,rtl=checked(case);label=traffic+'-'+('negative' if negative else 'off' if disabled else 'on')
@@ -219,6 +247,7 @@ def report(case,output):
         sdk_revision=build['config']['sdk_revision'],sdk_local_changes=build['config']['sdk_local_changes'],
         cpu_rtl_sha256=build['config']['cpu_sha256'],observer_version=build['config']['observer_version'],
         same_elf_for_hardware_qemu_rtl=True,hardware_run_performed=False,assets_required=False)
+    if 'save_log' in build['config']:hardware_manifest['save_log']=build['config']['save_log']
     if not bundle.exists():
         bundle.mkdir();shutil.copy2(d/'app.elf',bundle/'calibration.elf');shutil.copy2(d/'app.disassembly.txt',bundle/'calibration.disassembly.txt')
         (bundle/'SHA256SUMS').write_text(experiments.sha(bundle/'calibration.elf')+'  calibration.elf\n')
@@ -226,7 +255,9 @@ def report(case,output):
         (bundle/'README.txt').write_text('Prepared only; no hardware run or installation occurred.\n'
             'Load calibration.elf as an application under a compatible openfpgaOS Pocket os25 runtime.\n'
             'Use no application arguments. It runs automatically and prints CALINFO, CALPIXELS and 72 CALRESULT rows to stdout.\n'
-            'Collect the complete stdout/UART log including CALIBRATION PASS. The app writes no files.\n'
+            'Wait for CALSAVE saved and CALIBRATION PASS, then exit through the Analogue menu.\n'
+            'Retrieve Saves/butterscotch/common/calibration_log.sav; text ends at the first NUL.\n'
+            'The latest run replaces the dedicated calibration log; game saves are separate.\n'
             'Verify SHA256SUMS and retain the exact ELF alongside the log. Do not infer core identity from variant=0 alone.\n'
             'Normal SDK/musl entry is used on hardware; the separate RTL entry is simulator-only.\n'
             'Physical performance remains unverified. GPU/audio/display/interrupt activity can differ from RTL.\n')
@@ -234,14 +265,31 @@ def report(case,output):
     if json.loads((bundle/'manifest.json').read_text())!=hardware_manifest:raise ValueError('Hardware provenance changed')
     if experiments.sha(bundle/'calibration.disassembly.txt')!=experiments.sha(d/'app.disassembly.txt'):raise ValueError('Hardware disassembly changed')
     if (bundle/'SHA256SUMS').read_text()!=experiments.sha(d/'app.elf')+'  calibration.elf\n':raise ValueError('Hardware checksum changed')
+    overlay=None
+    if 'save_log' in build['config']:
+        overlay=case/'pocket-overlay';common=overlay/'Assets/butterscotch/common'
+        instance=overlay/'Assets/butterscotch/zenibako.Butterscotch09os25/OS25 Calibration.json'
+        payload={common/'os25_calibration.elf':d/'app.elf',common/'os25_calibration.ini':case/'calibration/pocket.ini',
+                 instance:case/'calibration/pocket-instance.json'}
+        if not overlay.exists():
+            for destination,source in payload.items():destination.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,destination)
+        for destination,source in payload.items():
+            if experiments.sha(destination)!=experiments.sha(source):raise ValueError('Pocket overlay changed: '+str(destination))
+        if {p for p in overlay.rglob('*') if p.is_file()}!=set(payload):raise ValueError('Unexpected Pocket overlay payload')
+        experiments.save(case/'pocket-overlay-manifest.json',dict(uses_existing_runtime='Butterscotch09os25 / os09.bin',
+            elf_sha256=experiments.sha(d/'app.elf'),save_file=SAVE_FILE,save_slot=11,
+            files={str(p.relative_to(overlay)):experiments.sha(p) for p in payload},hardware_run_performed=False,sd_card_touched=False))
     evidence=dict(case=str(case.resolve()),elf_sha256=experiments.sha(d/'app.elf'),build_sha256=experiments.sha(d/'build.json'),
         replay_hashes={label:experiments.sha(d/label/'results.json') for label in ['quiet-on','quiet-off','quiet-negative','scanout-on']},
         reference_sha256=experiments.sha(d/'reference.json'),hardware_artifacts={p.name:experiments.sha(p) for p in bundle.iterdir() if p.is_file()},
         analysis_sources={name:experiments.sha(ROOT/name) for name in
             ['calibration.py','cache_profile.py','cache_report.py','pipeline_analysis.py','pipeline_report.py','experiments.py']})
+    if overlay:evidence['pocket_overlay_manifest_sha256']=experiments.sha(case/'pocket-overlay-manifest.json')
     experiments.save(d/'results.json',dict(scope='Same ELF calibration; simulated 100 MHz, hardware run pending',
         build=build,evidence=evidence,quiet=summary,scanout=scan_summary,hardware_bundle=str(bundle.resolve()),
-        controls=dict(passive_observer_cycles_identical=True,qemu_negative_rejected=True,rtl_negative_rejected=True)))
+        pocket_overlay=str(overlay.resolve()) if overlay else None,
+        controls=dict(passive_observer_cycles_identical=True,qemu_negative_rejected=True,rtl_negative_rejected=True,
+                      **json.loads((d/'reference.json').read_text()).get('save_checks',{}))))
     table=cache_report.table
     text=['# Identical-binary calibration','',f"Build `{build['config']['id']}`, compiler `{build['compiler_version']}`. "
           'Hardware, QEMU and RTL use the same ELF; hardware execution is pending. All timings are simulated.','',
@@ -280,13 +328,18 @@ def report(case,output):
           'display/audio traffic, stack/TLS placement and initial cache state remain unmatched. '
           'Diagnostic scanout is the 80-word, 480/525-line injector.','',
           f"Private hardware deliverable: `{bundle.relative_to(ROOT)}/calibration.elf`. No source checkout, "
-          'SDK source or SD card was modified. See [README.md](README.md) for preparation and comparison instructions.','']
+          'SDK source or SD card was modified. See [README.md](README.md) for preparation and comparison instructions.','',
+          ('This revision saves the latest complete calibration log as NUL-terminated text through save slot 11 '
+          '`calibration_log.sav`, after every measurement and oracle check. QEMU saved text matches stdout; '
+          'failed-run logging and failure to create the log were checked. Bare RTL skips file writes. '
+          'Physical save-slot persistence awaits the device run and exit through the Analogue menu.'
+           if 'save_log' in build['config'] else 'This original revision prints to stdout only.'),'']
     output.parent.mkdir(parents=True,exist_ok=True);output.write_text('\n'.join(text));print('VERIFIED CALIBRATION',d/'results.json','HARDWARE',bundle/'calibration.elf',flush=True)
 
 def compare(case,elf,log,core_note):
     d,build,_=checked(case)
     if experiments.sha(elf)!=experiments.sha(d/'app.elf'):raise ValueError('Hardware ELF differs from calibrated ELF')
-    actual=parse(log.read_text(),'hardware');match_reference(actual,checked_reference(d))
+    actual=parse(log.read_bytes().split(b'\0',1)[0].decode(),'hardware');match_reference(actual,checked_reference(d))
     quiet=verify_replay(case,'quiet-on');scan=verify_replay(case,'scanout-on')
     rows=[]
     for job in range(24):

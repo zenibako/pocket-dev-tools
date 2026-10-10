@@ -49,6 +49,11 @@ same ELF hash for device testing; `compare` validates a supplied hardware log
 against that ELF and reference. Record the actual core/OS identity separately.
 Measured addresses match, but kernel startup, interrupts and display/audio
 activity differ. No logging/validation occurs between calibration intervals.
+The save-enabled calibration uses the benchmark's NUL-terminated save-slot
+log, with its own `calibration_log.sav` filename in slot 11. Prepare its private
+Pocket overlay; never touch the SD card. After a separately authorized device
+run, exit through the Analogue menu and collect the raw `.sav`. QEMU checks
+saved text and write failure; actual Pocket persistence is a device check.
 
 Microprobe intervals are batches of direct renderer calls, not complete game
 frames. Require both disabled-observer and corrupted-oracle controls from the

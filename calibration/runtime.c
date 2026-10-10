@@ -1,6 +1,7 @@
 #include "calibration.h"
 #include "build_id.h"
 #include "of_caps.h"
+#include "save_log.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -12,17 +13,21 @@ typedef struct { unsigned job,round,iterations,operations,cycles,result,expected
 static CalResult samples[72];
 static unsigned measured,begin_cycles;
 
-static void emit(const char *s){
+static void console(const char *s){
  if(calibration_mode==1){
   while(*s){while(!(*(volatile unsigned*)0x4f000000u&2)){}*(volatile unsigned*)0x4f000004u=(unsigned char)*s++;}
  }else fputs(s,stdout);
 }
+static void emit(const char *s){cal_log_keep(s);console(s);}
 static void output(const char *fmt,...){
  char line[320];va_list ap;va_start(ap,fmt);vsnprintf(line,sizeof(line),fmt,ap);va_end(ap);emit(line);
 }
 void calibration_fail(const char *reason){
  output("FRAMEHARNESS FAIL calibration %s\n",reason);
- if(calibration_mode!=1)exit(2);for(;;){}
+ if(calibration_mode!=1){
+  console(cal_log_dump()?"CALSAVE saved calibration_log.sav (failed run)\n":"CALSAVE FAIL calibration_log.sav\n");
+  exit(2);
+ }for(;;){}
 }
 void calibration_trap(unsigned cause,unsigned pc,unsigned value){
  output("FRAMEHARNESS FAIL calibration trap cause=%x pc=%x value=%x\n",cause,pc,value);for(;;){}
@@ -70,7 +75,15 @@ int calibration_run(void){
   const char *name=r->job<calibration_job_count?calibration_jobs[r->job].name:"sprite";
   output("CALRESULT %u %u %u %s %u %u %u %08x %08x\n",i,r->job,r->round,name,r->iterations,r->operations,r->cycles,r->result,r->expected);
  }
- emit("CALIBRATION PASS HAL init\n");return 0;
+ /* Include the success marker in the saved text, but announce success on the
+    console only after the save completes. No file operation is timed. */
+ const char *pass="CALIBRATION PASS HAL init\n";
+ cal_log_keep(pass);
+ if(calibration_mode!=1){
+  if(!cal_log_dump())calibration_fail("save log write");
+  console("CALSAVE saved calibration_log.sav; exit via Analogue menu\n");
+ }
+ console(pass);return 0;
 }
 int main(int argc,char **argv){
  if(argc==2 && !strcmp(argv[1],"--reference"))calibration_mode=2;

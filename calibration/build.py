@@ -40,7 +40,7 @@ def build():
     paths += [d/'renderer.c' if p.name=='sw_renderer.c' else d/'drawing.c' if p.name=='sw_drawing.c' else d/'pack.c' if p.name=='sw_texture_pack.c' else p for p in sorted((src/'sw').glob('*.c'))]
     paths += [*sorted((src/'image').glob('*.c')),*sorted((src/'debug_font').glob('*.c')),src/'embedded/stb_impl.c',
               *sorted((vendor/'bzip2').glob('*.c')),*[vendor/p for p in ['sha1/sha1.c','md5/md5.c','base64/base64.c','miniz/miniz.c','miniz/miniz_tdef.c','miniz/miniz_tinfl.c']]]
-    paths += [ROOT/'calibration'/p for p in ['runtime.c','kernels.c','start.S']]+[d/'icache.S',ROOT/'hardware-sdk/of_init.c']
+    paths += [ROOT/'calibration'/p for p in ['runtime.c','kernels.c','save_log.c','start.S']]+[d/'icache.S',ROOT/'hardware-sdk/of_init.c']
     flags=['-march=rv32imafc_zicsr_zifencei','-mabi=ilp32f','-O2','-g','-ffunction-sections','-fdata-sections',
            '-falign-functions=64','-falign-loops=64','-fno-tree-loop-distribute-patterns','-nostdinc',
            '-isystem',str(ROOT/'inputs/sdk/musl/include'),'-DENABLE_WAD17','-DUSE_FLOAT_REALS','-DNO_RVALUE_INT64',
@@ -75,7 +75,7 @@ def build():
         ''.join(f'{i} : {struct.unpack_from("<I",bram,i*4)[0]:08X};\n' for i in range(8192))+'END;\n')
     dump=subprocess.check_output(['riscv64-unknown-elf-objdump','-d',str(d/'app.elf')],text=True)
     (d/'app.disassembly.txt').write_text(dump)
-    tracked=[*paths,ROOT/'calibration/calibration.h',ROOT/'calibration/sprite.inc',ROOT/'calibration/build.py',
+    tracked=[*paths,ROOT/'calibration/calibration.h',ROOT/'calibration/save_log.h',ROOT/'calibration/sprite.inc',ROOT/'calibration/build.py',
              ROOT/'hardware-sdk/app.ld',ROOT/'calibration.json',d/'expected.h',d/'build_id.h',d/'sw_call_notes.h']
     manifest=dict(config=config,compiler_version=subprocess.check_output([compiler,'--version'],text=True).splitlines()[0],
         flags=flags,command=command,entry=entry,rtl_entry=symbols['_rtl_start']['address'],

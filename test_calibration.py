@@ -46,6 +46,19 @@ class CalibrationEvidenceTest(unittest.TestCase):
         self.assertEqual(calibration.parse(recap,'rtl'),calibration.parse(text,'rtl'))
         with self.assertRaises(ValueError):calibration.parse(recap.replace('=== UART END ===',''),'rtl')
 
+    def test_saved_log_stops_at_nul_and_accepts_crlf(self):
+        text=log('hardware',100)
+        saved=text.replace('\n','\r\n')+'\0'+log('hardware',99)+'FRAMEHARNESS FAIL stale run'
+        self.assertEqual(calibration.parse(saved,'hardware'),calibration.parse(text,'hardware'))
+
+    def test_instance_uses_dedicated_second_save_slot(self):
+        instance=json.loads((Path(calibration.__file__).parent/'calibration/pocket-instance.json').read_text())
+        slots={s['id']:s['filename'] for s in instance['instance']['data_slots']}
+        self.assertEqual(slots[11],'calibration_log.sav')
+        self.assertEqual(slots[1],'os09.bin')
+        self.assertEqual(slots[3],'os25_calibration.elf')
+        self.assertFalse(any(s.startswith(('undertale_','deltarune_')) for s in slots.values()))
+
     def test_matching_reported_value_and_expected_cannot_override_reference(self):
         ref=calibration.parse(log(),'reference')
         for field,value in [('build_id','ffffffffffffffff'),('pixels','87654321')]:
@@ -69,7 +82,7 @@ class CalibrationEvidenceTest(unittest.TestCase):
         replay={'actual':calibration.parse(log('rtl',50),'rtl')}
         with tempfile.TemporaryDirectory() as directory:
             d=Path(directory);(d/'app.elf').write_bytes(b'identical ELF')
-            supplied=d/'supplied.log';supplied.write_text(log('hardware',100))
+            supplied=d/'supplied.log';supplied.write_bytes(log('hardware',100).encode()+b'\0\xff\x80stale slot bytes')
             before=supplied.read_bytes()
             for name in ['quiet-on','scanout-on']:
                 (d/name).mkdir();(d/name/'results.json').write_text('{}')

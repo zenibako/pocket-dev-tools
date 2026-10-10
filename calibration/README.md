@@ -28,7 +28,13 @@ renderer/GML profiling is disabled. It repeats the staged probe order
 6,5,4,3,2,1,0,outside three times after warm-up. Output and validation are deferred
 until all measurements finish, eliminating inter-batch hashing/UART pollution.
 
-The hardware app reports to stdout only. Preparing it does not install a core,
+The hardware app prints to stdout and saves the complete log as
+`calibration_log.sav` through save slot 11, using the benchmark's checked
+`fopen("wb")` / write / terminating NUL / `fclose` method. Only the latest
+run is retained. Buffering, formatting and file writes happen after every
+measurement, and failure to save prevents a successful completion message.
+Bare RTL skips file writes; QEMU verifies the saved text against stdout.
+Preparing it does not install a core,
 copy files to an SD card, run a deployment target or modify the source checkout.
 It requires the Pocket os25 core and a compatible openfpgaOS SDK application
 loader. Its actual execution on hardware remains a separate test. OS interrupts,
@@ -53,7 +59,7 @@ python3 calibration.py replay --case EXACT_CALCASE
 python3 calibration.py replay --case EXACT_CALCASE --disabled
 python3 calibration.py replay --case EXACT_CALCASE --negative
 python3 calibration.py replay --case EXACT_CALCASE --traffic scanout
-python3 calibration.py report --case EXACT_CALCASE
+python3 calibration.py report --case EXACT_CALCASE --output calibration/SAVE-RESULTS.md
 ```
 
 Each command preserves earlier evidence. Failed builds/replays need a fresh
@@ -67,11 +73,18 @@ ELF, simulator and raw-event hashes and regenerates the numerical summaries.
 No CPU/cache parameters change. The fixed diagnostic scanout uses 80 words
 per line, 3,175-cycle line period and 480 active / 525 total lines.
 
-The [simulated results](RESULTS.md) identify the prepared case. Its `hardware/`
+The [save-enabled simulated results](SAVE-RESULTS.md) identify the prepared case;
+the [earlier stdout-only results](RESULTS.md) remain preserved. Its `hardware/`
 directory contains `calibration.elf`, disassembly, `SHA256SUMS`, provenance
 manifest and run instructions. This is an application ELF for the normal SDK
 loader, not a core bitstream. Its `_start` entry uses musl/SDK startup; the bare
 RTL entry is a separate symbol retained in the same ELF.
+
+The case's `pocket-overlay/` contains just the application, config and instance
+JSON. It reuses the already installed `Butterscotch09os25` core and `os09.bin`.
+The instance names `calibration_log.sav` for slot 11; no Undertale/Deltarune save
+filename is used. Copy the overlay after the ordinary runtime tree with the
+same rsync options and trailing slash. It contains no `Cores/` or `Saves/` tree.
 
 The loops run three consecutive batches after a full untimed microkernel warm-up.
 The sprite suite runs three rounds with one untimed inside draw per round.
@@ -90,13 +103,18 @@ test, use the os25 core and compatible 100 MHz Pocket OS. Keep the exact ELF and
 record the core/OS build, mode, display/audio activity and complete stdout log.
 The app checks Pocket capabilities, SDRAM aliases and clock before running.
 Core variant zero alone cannot prove which synthesized core is loaded.
-It needs no game assets, takes no application arguments and writes no files.
+It needs no game assets and takes no application arguments. Wait for
+`CALSAVE saved calibration_log.sav` and `CALIBRATION PASS`, then leave the core
+through the Analogue menu so the Pocket flushes the save slot to the SD card.
+Retrieve `Saves/butterscotch/common/calibration_log.sav` and send the raw file;
+`compare` accepts it directly and ignores stale bytes after its first NUL.
+SD persistence remains unverified until this physical test is performed.
 
 Once the log is available, compare it locally without connecting to the device:
 
 ```sh
 python3 calibration.py compare --case EXACT_CALCASE \
-  --elf /absolute/copy-of-tested/calibration.elf --log /absolute/hardware.log \
+  --elf /absolute/copy-of-tested/calibration.elf --log /absolute/calibration_log.sav \
   --core-note 'os25; record exact core and OS identity here'
 ```
 
