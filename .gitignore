@@ -1,0 +1,11 @@
+# Private dependency snapshots, game assets, bytecode, state and generated output.
+/inputs/
+/build/
+/captures/
+/battle_fixtures.inc
+__pycache__/
+*.pyc
+.DS_Store
+
+# Temporary private imports
+/.bootstrap-*/
