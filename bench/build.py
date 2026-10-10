@@ -14,9 +14,11 @@ import capture
 
 def sources():
     src, port, vendor = capture.SRC, capture.PORT, capture.VENDOR
+    menu = [port / 'platform' / n for n in ['ut_menu.c', 'ut_font.c']
+            if (port / 'platform' / n).is_file()]
     return [port / 'main.c', *[port / 'platform' / n for n in
             ['of_platform.c', 'of_diag.c', 'of_log.c', 'of_perf.c', 'of_audio_system.c',
-             'ut_bench.c', 'ut_strings.c', 'ut_save_fs.c', 'ut_native.c']],
+             'ut_bench.c', 'ut_strings.c', 'ut_save_fs.c', 'ut_native.c']], *menu,
             *sorted(src.glob('*.c')), *sorted((src / 'sw').glob('*.c')),
             *sorted((src / 'image').glob('*.c')), *sorted((src / 'debug_font').glob('*.c')),
             src / 'video/null_video.c', src / 'embedded/stb_impl.c',

@@ -16,6 +16,10 @@ experiment switches at revision 0134a2f, verified frame replays, and the device
 rows, profiler and early-culling controls. These are three-frame simulated samples;
 the device measurements cover complete benchmark sections.
 
+The [transformed-bounds cull follow-up](2026-10-10-cull-reuse-results.md) compares
+base and revised cull after rebasing onto main `e83f1c7`, with fresh dodge/field
+cases. Outputs match; cull is slightly slower in both timing samples.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
