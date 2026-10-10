@@ -1,0 +1,4 @@
+interface:
+  display_name: "os25 openFPGA Harness"
+  short_description: "Replay and profile Butterscotch with os25 RTL"
+  default_prompt: "Use $os25-harness to verify this Butterscotch openFPGA change in an isolated case and report its output and simulated cycle differences."
