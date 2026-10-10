@@ -10,6 +10,11 @@ The current VM fixtures, capture hooks and frame platform are Butterscotch adapt
 adding another core requires its own workload and oracles. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for that boundary.
 
+An experimental [Pico8Pocket runtime adapter](pico8/README.md) runs supplied
+cartridges through native smoke tests, repeated RV32 checkpoints and same-ELF
+os25 frame replay. Pico8Pocket ships os20; these os25 results describe the
+runtime on the harness platform and cannot establish shipped-core performance.
+
 ## Setup and private inputs
 
 Start with [SETUP.md](SETUP.md). `bootstrap.py` imports compatible local source

@@ -12,9 +12,11 @@ and setup, not the CPU configuration or the game runtime used in the baseline.
 | VM workload | `workloads.c`, `services.c`, `battle_replay.*`, `battle_fixtures.py`, `capture/` | Butterscotch BC16/BC17 and event transcripts |
 | Complete frames | `fullframe/` | Butterscotch game-loop checkpoint, rendering/audio platform, QEMU capture and RTL replay |
 | Hardware calibration | `calibration.py`, `calibration/` | One SDK ELF with normal hardware entry and separate bare RTL entry; asset-free numerical/renderer probes, QEMU oracles and passive pipeline counters |
+| Experimental Pico8 runtime | `pico8/` | Independent cart snapshot, deterministic RV32 checkpoint, indexed pixels/palette/PCM oracles and os25 replay; shipped os20 remains outside scope |
 
-The repository name describes its hardware target. It currently supports one
-runner, with two games. This is not yet a generic plugin API: another os25
+The repository name describes its hardware target. Its original validated
+baseline supports Butterscotch with two games; `pico8/` adds an experimental
+runtime workload on the same os25 platform. This is not yet a generic plugin API: another os25
 application needs a firmware entry point/linker map, deterministic capture route,
 checkpoint restore and independent output oracles. It can share the existing
 CPU/memory infrastructure. A core using different CPU/cache/bus configuration
