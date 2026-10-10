@@ -38,6 +38,10 @@ pipeline blocking and measured latency distributions, and attributes I-cache
 traffic to ELF functions. [Frozen Speed-mode results](cacheprobe/RESULTS.md)
 cover traced and untraced full-frame windows from both games.
 
+[Pipeline results](cacheprobe/PIPELINE-RESULTS.md) add architectural retirement/CPI,
+load and other operand dependencies, FPU/divider freezes, store-buffer waits and
+branch recovery. The original cache evidence remains preserved separately.
+
 ## Run
 
 From this directory, with Python 3, Docker/Colima and host Clang installed.

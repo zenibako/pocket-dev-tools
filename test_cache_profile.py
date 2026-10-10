@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 import cache_profile
+from cacheprobe.pipeline_fields import FIELDS
 
 
 class CacheObserverTest(unittest.TestCase):
@@ -20,6 +21,7 @@ class CacheObserverTest(unittest.TestCase):
                           ['arvalid','arready','araddr','arid','arlen','rvalid','rready','rid','rlast','rresp'])
         fields.extend('unsigned cp_'+name+'=0;' for name in
                       ['i_hold','i_pc','i_miss','i_resume','i_miss_pc','d_wait','commit','clock_cmd','clock_pc','clock_latch','counter'])
+        fields.extend('uint32_t cp_'+name+'=0;' for name in FIELDS)
         code='#include "'+str(cache_profile.ROOT/'cacheprobe/monitor.hpp')+'"\n'
         code+='struct Pins {'+''.join(fields)+'};\n'
         code+='''int main(){
@@ -40,6 +42,13 @@ class CacheObserverTest(unittest.TestCase):
             p.cp_i_resume=c==114;
             p.cp_i_hold=c>=105 && c<=111;p.cp_i_pc=0x10400004;
             p.cp_d_wait=c>=108 && c<=112;p.cp_commit=c==110;
+            if(c==100){p.cp_dispatch=1;p.cp_dispatch_id=7;p.cp_dispatch_pc=0x10400004;p.cp_dispatch_uop=3;}
+            if(c==106){p.cp_branch=p.cp_branch_wrong=1;p.cp_branch_target=0x10400044;p.cp_branch_pc=0x10400008;}
+            if(c==109){p.cp_dispatch=1;p.cp_dispatch_id=8;p.cp_dispatch_pc=0x10400044;p.cp_dispatch_uop=0x02000033;}
+            if(c==111){p.cp_retire=1;p.cp_retire_id=7;}
+            if(c==113){p.cp_retire=1;p.cp_retire_id=8;}
+            if(c>=108 && c<=112){p.cp_candidate=1;p.cp_rs=p.cp_rs_reconstructed=p.cp_load_dep=1;p.cp_dispatch_pc=0x10400044;}
+            if(c==112){p.cp_freeze=p.cp_div_freeze=p.cp_fp_div=1;}
             monitor.sample(p);
           }
           monitor.finish();
@@ -62,6 +71,32 @@ class CacheObserverTest(unittest.TestCase):
         first=profile['frames'][0]
         self.assertEqual((first['i_block_cycles'],first['d_block_cycles'],first['overlap_cycles']),(10,5,5))
         self.assertEqual(first['union_block_cycles'],10)
+        pipeline=first['pipeline']
+        self.assertEqual(pipeline['counts']['retired'],2)
+        self.assertEqual(pipeline['cycles_per_retired_instruction'],12.5)
+        self.assertEqual(pipeline['counts']['load_dependency'],4)
+        self.assertEqual(pipeline['counts']['integer_divider'],0)
+        self.assertEqual(pipeline['counts']['fp_divider'],1)
+        self.assertEqual(pipeline['branch_recovery_cycles']['histogram'],{'3':1})
+        self.assertEqual(pipeline['instruction_mix'],{'load':1,'integer_multiply':1})
+        self.assertEqual(sum(pipeline['exclusive_partition'].values()),25)
+        self.assertEqual(pipeline['no_retire_by_source']['i_block'],8)
+        # A canonical retirement later than the whitebox ctrl4 decision is distinct.
+        self.assertEqual(first['commit_pulses'],1)
+        from pipeline_report import summarize
+        pooled=summarize(profile)
+        self.assertEqual(pooled['cycles_per_retired_instruction'],32.5)
+        self.assertEqual(sum(pooled['exclusive_partition'].values()),65)
+        self.assertEqual(pooled['branch_recovery_cycles']['histogram'],{'3':1})
+        for kind,message in [('P','Incomplete pipeline'),('T','Retired-PC')]:
+            (self.root/'cache-profile.csv').write_text('\n'.join(line for line in raw.splitlines() if not line.startswith(kind+',0,')))
+            with self.assertRaisesRegex(ValueError,message):
+                cache_profile.parse(self.root/'cache-profile.csv',rows,[])
+        (self.root/'cache-profile.csv').write_text('\n'.join(line for line in raw.splitlines() if line[:2] not in ['P,','S,','T,','B,','V,']))
+        legacy=cache_profile.parse(self.root/'cache-profile.csv',rows,[])
+        self.assertNotIn('pipeline',legacy)
+        self.assertNotIn('pipeline',legacy['frames'][0])
+        (self.root/'cache-profile.csv').write_text(raw)
         self.assertEqual(first['i_fetch_hold_cycles'],7)
         self.assertEqual(first['i_miss_wait_cycles'],10)
         self.assertEqual(first['i_miss_events'],1)
@@ -73,6 +108,13 @@ class CacheObserverTest(unittest.TestCase):
         self.assertEqual(first['I']['right_boundary_transfers'],1)
         self.assertEqual(first['I']['outstanding_union_cycles'],24)
         self.assertEqual(profile['top30_by_block_cycles'][0]['name'],'first')
+
+    def test_decompressed_instruction_classes_distinguish_shared_divider_users(self):
+        from pipeline_analysis import opcode
+        for instruction,expected in [(0x02000033,'integer_multiply'),(0x02004033,'integer_divide_rem'),
+                                     (0x18000053,'fp_compute'),(0x00000007,'load'),(0x00000027,'store'),
+                                     (0x0000006f,'branch_jump'),(0x00001073,'system_csr')]:
+            self.assertEqual(opcode(instruction),expected)
 
     def test_unattributed_padding_is_not_assigned_to_nearest_function(self):
         lookup=cache_profile.Attribution([dict(name='f',address=0x1004,size=4)])

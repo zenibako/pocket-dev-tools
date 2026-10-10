@@ -1,6 +1,6 @@
 ---
 name: os25-harness
-description: Run the isolated os25 RV32/Verilator harness for Undertale and Deltarune Chapter 1. Use for revision output comparison, traced/timing frame replay and passive cache refill profiling without the active checkout or SD card.
+description: Run the isolated os25 RV32/Verilator harness for Undertale and Deltarune Chapter 1. Use for revision comparison, frame replay and passive cache/pipeline profiling with retirement, CPI and overlapping stalls, without the active checkout or SD card.
 ---
 
 # Testing with the os25 CPU and memory RTL
@@ -38,7 +38,7 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 | Synthetic and captured VM events | `python3 run.py all --jobs 4`; `build/results.json` | BC16/BC17 interpreter and value/variable handling; six captured leaf events use checked builtin transcripts |
 | Complete battle frames | `python3 fullframe/run.py run`; `build/fullframe/results.json` after `python3 fullframe/report.py` | Consecutive real game-loop iterations, all reached scripts/builtins, collision, software rendering and audio mixing |
 | Revision experiments | `python3 experiments.py`; [bench/README.md](../../../bench/README.md) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
-| Passive cache profile | `python3 cache_profile.py --case EXACT_CASE`; [cacheprobe/README.md](../../../cacheprobe/README.md) | I/D refill counts/distributions, cache pipeline blocking, I-cache ELF attribution; unchanged CPU/firmware in independent measurement copies |
+| Passive cache/pipeline profile | `python3 cache_profile.py --case EXACT_CASE`; [cacheprobe/README.md](../../../cacheprobe/README.md) | I/D refills, architectural retirement/CPI, dependencies, FPU/divider/store-buffer waits and branch recovery; unchanged CPU/firmware in independent copies |
 
 The event workload excludes real rendering and mixing; its cycles cannot stand
 in for battle frame time. The original complete-frame workload covers Undertale
@@ -107,6 +107,16 @@ The [f1d8542 results](../../../cacheprobe/RESULTS.md) show the scope and limitat
 frame-wide shares do not settle the isolated device sprite-culling hypothesis.
 Any free/unlimited-cache or ordering experiment needs its own recorded changes
 and verified evidence; do not infer its speedup from summed bus latency.
+
+Observer v3 adds canonical ctrl5 CommitService retirement and CPI. Keep that
+separate from the older ctrl4 commit-decision count. Inspect operand dependencies,
+store-buffer waits, shared integer/FP divider freezes, FP reservations/conversions,
+uncached I/O and branch recovery before attributing time to a cache. Raw masks
+preserve overlaps; a disjoint reporting priority is not a causal speedup estimate.
+`pipeline_report.py` verifies all eight windows/builds and writes separate output;
+see [pipeline results](../../../cacheprobe/PIPELINE-RESULTS.md). Timing still has
+renderer/GML profiling, including note formatting, so it is not profiler-free.
+Full-frame CPI does not determine an isolated device path's CPI.
 
 ## Run or rebuild complete frames
 

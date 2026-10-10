@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "pipeline.hpp"
+
 struct CacheTransfer {
     bool offered=false, accepted=false;
     uint32_t address=0, length=0, beats=0;
@@ -29,6 +31,7 @@ class CacheMonitor {
     std::array<CacheTransfer,4> instructions{}, data{};
     std::vector<CacheFrame> frames;
     std::ofstream output;
+    PipelineMonitor pipeline;
     static uint32_t setting(const char* name) {
         const char* s=std::getenv(name);
         if(!s)throw std::runtime_error(std::string("missing cache observer setting ")+name);
@@ -69,7 +72,7 @@ public:
         end_lo=setting("CACHE_END_LO");end_hi=setting("CACHE_END_HI");
         output.open("cache-profile.csv");
         if(!output)throw std::runtime_error("cannot open cache profile");
-        output<<"# os25 passive cache observer v2; timestamps are the MMIO counter\n";
+        output<<"# os25 passive cache observer v3; timestamps are the MMIO counter\n";
     }
     template<class T> void sample(const T& tb) {
         if(!enabled)return;
@@ -95,6 +98,7 @@ public:
         transfer('D',data,cycle,tb.cp_d_arvalid,tb.cp_d_arready,tb.cp_d_araddr,
                  tb.cp_d_arid,tb.cp_d_arlen,tb.cp_d_rvalid,tb.cp_d_rready,
                  tb.cp_d_rid,tb.cp_d_rlast,tb.cp_d_rresp);
+        pipeline.sample(tb,active,frames.empty()?0:frames.size()-1,tb.cp_i_hold||i_waiting,tb.cp_d_wait,output);
         if(active) {
             auto& f=frames.back();f.samples++;
             bool i=tb.cp_i_hold || i_waiting,d=tb.cp_d_wait,n=!tb.cp_commit;
@@ -133,6 +137,7 @@ public:
                     <<t.offer<<','<<t.accept<<','<<t.first<<','<<0<<','<<t.beats<<'\n';
             }
         }
+        pipeline.finish(output);
         output.close();
     }
 };

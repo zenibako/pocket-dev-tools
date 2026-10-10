@@ -57,6 +57,25 @@ contain the complete analysis under `cache_profile`.
 
 ## What the counters mean
 
+Observer v3 also measures canonical architectural retirement, dispatch, source
+operand dependencies, execution freezes and branch recovery. See
+[PIPELINE-RESULTS.md](PIPELINE-RESULTS.md) for the frozen eight-case study;
+[RESULTS.md](RESULTS.md) remains the original v2 cache study. The same
+`--case`, `--disabled` and `--negative` commands apply. Write the new report to
+separate destinations to preserve the earlier evidence:
+
+```sh
+python3 pipeline_report.py --results EIGHT_EXACT_POSITIVE_RESULTS \
+    --checks DISABLED_RESULTS NEGATIVE_RESULTS SCANOUT_RESULTS \
+    --output build/pipeline-profile/results.json \
+    --markdown build/pipeline-profile/results.md
+```
+
+`pipeline_report.py` requires both builds of all four frozen Speed/legacy/SDRAM/
+quiet windows. It rejects a missing/duplicate window or different revision,
+compiler or service configuration. Both report writers verify artifacts and
+freshly parse the raw events; v2 parsing retains its original schema.
+
 All signals are sampled settled, immediately before a rising CPU clock edge.
 The peripheral cycle counter supplies timestamps. Frames begin/end on the exact
 MMIO latch edges used by the existing `frame_begin`/`frame_end` firmware reads,
@@ -78,6 +97,51 @@ firmware’s elapsed cycle count for each of the three frames.
 | I/D union | I block + D block − simultaneous block |
 | No-commit subset | Above cycles with no `WhiteboxerPlugin_logic_commits_ports_0_valid` architectural commit-decision pulse |
 
+### Additional v3 observations
+
+| Quantity | Definition |
+| --- | --- |
+| Retired instruction | `PrivilegedPlugin_logic_harts_0_commitMask`, ctrl5 CommitService; the optional hardware instruction counter uses this event |
+| CPI | Exact frame cycles divided by canonical retired native RISC-V instructions; pooled CPI divides pooled cycles by pooled instructions |
+| Retiring function/instruction mix | Dispatch PC and decompressed instruction tracked by the 16-bit UOP ID until retirement; cancelled work never retires |
+| RAW dependency | Valid, uncancelled candidate cannot dispatch while `rsHazards[0]` is asserted |
+| Load/multiply/FP dependency | Exact producer-stage register/enable/file/bypass matches, classified by producer instruction; counts overlap across operands |
+| FP reservation | Candidate blocked by the shared FP add/pack resource reservation checker |
+| Execute freeze | Union of divider, sqrt, float-to-int, int-to-float, uncached LSU I/O, CSR injection and atomic delay freezes |
+| Integer/FP divider | Shared divider freeze split by the ctrl2 FP-divide select |
+| Store-buffer wait | `LsuPlugin_logic_storeBuffer_holdHart_waitIt`, separately from the refill waiter |
+| Flush/fence interlocks | Candidate blocked by dispatch flush/fence hazard flags; these are not branch-mispredict counts |
+| Branch/jump mispredict | Firing branch learn event with `wasWrong`; includes direction/target corrections, calls and returns |
+| Branch recovery envelope | That event through dispatch of the corrected target, exclusive of the redirect edge; overlaps cache and execution waits |
+
+The observer checks every sample that its reconstructed producer hazards match
+the RTL RAW signal and that its freeze sources equal the global freeze signal.
+Load and integer multiply producers occur in stages 1–4 in this netlist. FP
+classification includes FP instructions there and later floating-register
+producers. Late FP results to integer registers can remain in other RAW; the FP
+subset is conservative. There is no dedicated integer multiply freeze pin.
+
+`P` records retain the complete per-cycle bitmask histogram; `S` records retain
+blocked consumer PCs; `T` records retain retired PCs/instructions; `B` records
+retain completed branch recovery episodes (`V` marks an unfinished episode).
+The analyzer requires complete frame/PC histograms and branch recoveries.
+Existing cache `F/H/R/M/W/U` records remain unchanged. The mask bit names are in
+[pipeline_analysis.py](../pipeline_analysis.py); the read-only pins and runtime
+checks are in [signals.vh](signals.vh) and [pipeline.hpp](pipeline.hpp).
+
+No-retirement subsets use the canonical ctrl5 event; old no-commit subsets keep
+the ctrl4 definition. Overlapping signals are observations, not additive lost
+cycles. The report's disjoint partition states its assignment priority and
+preserves the raw masks so another priority can be computed. Branch recovery
+also includes I-cache misses and other waits. Removing one observed source
+requires a separate counterfactual before claiming a speedup.
+
+The timing firmware omits per-VM-instruction tracing and in-loop PCM hashing,
+but still enables `SW_DRAW_PROFILE` and `ENABLE_VM_GML_PROFILER`. Renderer note
+formatting/searching remains measured work. Hardware FPU counters also exclude
+software double-precision helpers. Do not equate full-frame CPI with the cost
+of an isolated sprite probe or describe this timing binary as profiler-free.
+
 The production netlist omits the optional I-cache waiting event register. The
 observer shadows its documented source logic without instantiating or driving
 a register in the CPU. SpinalHDL `Node.isMoving` is `valid && (ready || cancel)`
@@ -94,6 +158,14 @@ The relevant private, pinned sources are:
 - The corresponding `execute/lsu/LsuPlugin.scala`, `L1Waiter`/`hartRegulation`.
 - `ext/SpinalHDL/lib/src/main/scala/spinal/lib/misc/pipeline/Node.scala`, `isMoving`.
 - `inputs/os/src/fpga/vendor/vexriscv/VexiiRiscv/VexiiRiscv_os25.v`, generated signals named in [signals.vh](signals.vh).
+
+Additional pipeline references under the same pinned `src/main/scala/vexiiriscv/`
+root are `misc/TrapPlugin.scala` (CommitService mask),
+`misc/PerformanceCounterPlugin.scala` (instruction-counter event),
+`schedule/DispatchPlugin.scala` (source-register bypass and reservations),
+`execute/BranchPlugin.scala` (firing prediction learn event/redirect),
+`execute/DivPlugin.scala` and `execute/fpu/FpuDivPlugin.scala` (shared divider),
+and `execute/ExecutePipelinePlugin.scala` (global freeze).
 
 ## Interpretation and attribution
 

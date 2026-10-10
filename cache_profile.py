@@ -11,6 +11,7 @@ import shutil
 import subprocess
 
 import experiments
+import pipeline_analysis
 
 ROOT=experiments.ROOT
 PRIVATE=ROOT/'experiments/cache-profiles'
@@ -67,6 +68,7 @@ def union_cycles(intervals, begin, end):
 
 
 def parse(path, expected, function_symbols):
+    pipeline_records=[]
     frames=[];holds=defaultdict(list);refills=[];unfinished=[];recoveries=[];pending_misses=[]
     for row in csv.reader(path.read_text().splitlines()):
         if not row or row[0].startswith('#'):continue
@@ -85,6 +87,7 @@ def parse(path, expected, function_symbols):
             keys=['address','id','offer','accept','first','last','beats']
             item=dict(zip(keys,map(int,row[2:])));item['cache']=row[1]
             (refills if row[0]=='R' else unfinished).append(item)
+        elif row[0] in ['P','S','T','B','V']:pipeline_records.append(row)
         else:raise ValueError('Unknown cache profile record')
     if len(frames)!=len(expected) or len(frames)!=3:raise ValueError('Incomplete cache profile window')
     attribution=Attribution(function_symbols)
@@ -132,7 +135,7 @@ def parse(path, expected, function_symbols):
                for name,values in aggregate.items()]
     by_refills=sorted(functions,key=lambda f:(-f['refills'],f['name']))[:30]
     by_stalls=sorted(functions,key=lambda f:(-f['i_block_cycles'],f['name']))[:30]
-    return dict(frames=frames,total_frame_cycles=total,functions=functions,
+    result = dict(frames=frames,total_frame_cycles=total,functions=functions,
         i_address_histogram=[dict(address=hex(addr),function=attribution.name(addr),**counts)
                              for addr,counts in sorted(address_histogram.items())],
         top30_by_refills=by_refills,top30_by_block_cycles=by_stalls,
@@ -148,6 +151,8 @@ def parse(path, expected, function_symbols):
                 'Service latency is accepted AR through accepted RLAST, inclusive; concurrent sums are not frame stall.',
                 'Refill count attributed by 64-byte line base; I block attributed to episode initiating miss PC or held fetch PC.',
                 'Line bases in padding and missing symbols remain in an explicit unattributed bucket.'])
+    if pipeline_records:result['pipeline']=pipeline_analysis.analyze(frames,pipeline_records,attribution,distribution)
+    return result
 
 
 def observer_hash():
@@ -182,7 +187,7 @@ def run(args):
     root=PRIVATE/(source.name+'-'+version+'-'+args.traffic+'-'+suffix)
     if root.exists():raise ValueError('Profile output exists; preserve it and choose another source case or observer version')
     experiments.copy_tree(source,root)
-    shutil.copytree(ROOT/'cacheprobe',root/'cacheprobe',ignore=shutil.ignore_patterns('__pycache__'))
+    shutil.copytree(platform/'cacheprobe',root/'cacheprobe',ignore=shutil.ignore_patterns('__pycache__'))
     for name in ['main.cpp','rtl.json','obj/Vtb_system']:
         shutil.copy2(platform/'build/fullframe/rtl'/name,root/'build/fullframe/rtl'/name)
     experiments.copy_tree(platform/'build/cacheprobe',root/'build/cacheprobe')
@@ -206,7 +211,8 @@ def run(args):
         profile=parse(target/'cache-profile.csv',result['rows'],functions)
     result['cache_profile']=dict(enabled=not args.disabled,source_case=str(source),
         source_result_sha256=experiments.sha(directory/(args.traffic+'-results.json')),
-        observer_version=version,analyzer_sha256=experiments.sha(ROOT/'cache_profile.py'),clock_bounds={name:bounds[name] for name in ['frame_begin','frame_end']},
+        observer_version=version,analyzer_sha256=experiments.sha(ROOT/'cache_profile.py'),
+        pipeline_analyzer_sha256=experiments.sha(ROOT/'pipeline_analysis.py'),clock_bounds={name:bounds[name] for name in ['frame_begin','frame_end']},
         unchanged_frame_cycles_and_oracles=not args.negative,
         raw_sha256=experiments.sha(target/'cache-profile.csv') if not args.disabled else None,
         elf_sha256=experiments.sha(target/'program.elf'),profile=profile)

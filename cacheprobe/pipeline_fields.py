@@ -1,0 +1,2 @@
+"""Read-only pins of the pinned os25 netlist; not CPU parameters."""
+FIELDS = {'retire': 1, 'retire_id': 16, 'dispatch': 1, 'dispatch_id': 16, 'dispatch_pc': 32, 'dispatch_uop': 32, 'candidate': 1, 'freeze': 1, 'rs': 1, 'load_dep': 1, 'mul_dep': 1, 'fp_dep': 1, 'reservation': 1, 'flush_hazard': 1, 'fence': 1, 'store_wait': 1, 'div_freeze': 1, 'fp_div': 1, 'sqrt': 1, 'f2i': 1, 'i2f': 1, 'io': 1, 'csr': 1, 'atomic': 1, 'branch': 1, 'branch_wrong': 1, 'branch_target': 32, 'branch_pc': 32, 'btb': 1, 'decode_redirect': 1, 'rs_reconstructed': 1}

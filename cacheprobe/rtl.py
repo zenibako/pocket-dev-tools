@@ -9,6 +9,7 @@ import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 import harness
+from pipeline_fields import FIELDS
 
 
 def build(jobs):
@@ -24,6 +25,8 @@ def build(jobs):
             declarations.append('output wire '+(f'[{width-1}:0] ' if width>1 else '')+f'cp_{name}_{field},')
     for name,width in [('i_hold',1),('i_pc',32),('i_miss',1),('i_resume',1),('i_miss_pc',32),('d_wait',1),('commit',1),
                        ('clock_cmd',1),('clock_pc',32),('clock_latch',1),('counter',32)]:
+        declarations.append('output wire '+(f'[{width-1}:0] ' if width>1 else '')+'cp_'+name+',')
+    for name,width in FIELDS.items():
         declarations.append('output wire '+(f'[{width-1}:0] ' if width>1 else '')+'cp_'+name+',')
     top=(leaf/'top.v').read_text()
     top=harness.once(top,'module tb_system (','module tb_system (\n`ifdef HARNESS_CACHE_PROFILE\n'+
