@@ -51,6 +51,11 @@ in Accuracy. The adapter uses modeled file reads and the frozen standalone
 128-pixel texture packs; physical DMA and the new embedded pack layout remain
 separate validation work.
 
+The [rebased Speed device report](2026-10-11-rebased-device-results.md) confirms
+the embedded 64-pixel pack runs on the Pocket. The latest route is 1.46% quicker
+than the preceding unlabelled report, but battle draw counts differ; it does not
+isolate optimization gains. Accuracy device measurement remains pending.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
