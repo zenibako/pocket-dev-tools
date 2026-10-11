@@ -35,6 +35,10 @@ the debug menu. Timing builds improve 0.51% in Undertale Speed, 0.30% in
 Deltarune Speed, and 0.79% in Deltarune Accuracy; all twelve positive and
 negative RTL controls and output comparisons pass. Device testing remains.
 
+The [rebased profiler comparison](2026-10-10-profiler-rebase-results.md) repeats
+that matrix on main 308c17c using fresh e484ccc/86140c1 snapshots, and prepares
+separate feature-preserving base/profiler Pocket entries.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
