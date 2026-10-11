@@ -90,6 +90,13 @@ static void service_files() {
  source=source[:a]+loader+source[b:]
  source=source.replace('#include <sstream>','#include <sstream>\n#include <filesystem>\n#include <stdexcept>\n#include <iterator>')
  source=source.replace('uart_buf.find("VMHARNESS FAIL")','uart_buf.find("FRAMEHARNESS FAIL")')
+ # A UART success line can arrive before accepted SDRAM writes commit. Keep
+ # ticking the unchanged memory model until those writes reach the oracle.
+ source=harness.once(source,'        if (uart_buf.find("HAL init") != std::string::npos) {',
+                      '        if (uart_buf.find("FRAMEHARNESS PASS HAL init\\n") != std::string::npos &&\n'
+                      '            exp_fifo.empty() && aw_fifo.empty() && wr_run_left == 0) {')
+ source=harness.once(source,'                         orphan_beats || strike_words) ? 3 : 0;',
+                      '                         orphan_beats || strike_words || wconf_mism || wconf_spurious) ? 3 : 0;')
  source=harness.once(source,'        if (tb->inj_burst_rd)','        if ((cpu_cycles & 63u)==0) service_files();\n        if (tb->inj_burst_rd)')
  source=harness.once(source,'    std::printf("SDRAM errors=%u\\n", tb->harness_sdram_errors);','    std::printf("SDRAM errors=%u\\n", tb->harness_sdram_errors);\n    std::printf("Virtual file calls=%llu bytes=%llu\\n",(unsigned long long)rpc_calls,(unsigned long long)rpc_bytes);')
  (d/'main.cpp').write_text(source)
