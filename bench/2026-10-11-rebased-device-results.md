@@ -1,10 +1,11 @@
-# Rebased Deltarune Speed device report, 2026-10-11
+# Rebased Deltarune device reports, 2026-10-11
 
 The new save follows the Pocket build of experiment revision
 0f7fb40014c1f9695bd0959fdb495eba91c08734, rebased onto main d157e5b.
 The prepared card has fresh Speed/Accuracy rebased entries for both games and
-keeps Script times in Debug, off by default. The save contains Speed reports
-only. Association with that build comes from this session; the reports contain
+keeps Script times in Debug, off by default. The first save contains Speed
+reports; the subsequent Accuracy result is recorded below. Association with
+that build comes from this session; the reports contain
 no revision label or independent loaded-ELF hash. The previous report's build
 is unknown and is an observational comparison, not a controlled baseline.
 
@@ -62,8 +63,8 @@ Whole draw is 62.74/62.36, texture lookup 2.68/2.67, and clock reads 16.79/16.79
 This report provides no evidence of an outside-view sprite-call saving.
 This is not a profiler-only comparison; that optimization is already merged.
 
-The next requested device measurement is Deltarune Benchmark accuracy rebased,
-with Script times left off. A repeat Speed run would help establish workload
+The next requested device measurement was Deltarune Benchmark accuracy rebased,
+with Script times left off; its result is below. A repeat Speed run would help establish workload
 and read-probe variation, but the older report cannot identify an exact control
 without additional build provenance. No rebuild or SD copy accompanied analysis.
 
@@ -85,5 +86,66 @@ marker excluding its trailing newline:
 Private build/rebased-device-0f7fb40/ contains the deduplicated report blocks
 and comparison.json with input/block hashes, line numbers, seven scene means,
 draw counts and arithmetic. The prepared card's independent file hashes remain
-in the game checkout's out/device-0f7fb40/card-manifest.json. Accuracy and
-Undertale device measurements for this build remain absent.
+in the game checkout's out/device-0f7fb40/card-manifest.json. At this upload,
+Accuracy and Undertale device measurements were absent.
+
+## Accuracy follow-up
+
+The next save adds one independent Accuracy report at line 2179. Its Speed
+reports are exact retained copies, including the 141.8-second report at lines
+238 and 1019. They provide no new Speed measurements. Core, OS and clock match,
+and the Accuracy run reaches its normal halt using the embedded 64-pixel pack
+and direct texture reads, without a texture timeout message.
+
+The earlier Accuracy reference is the labeled UT_PROFILER_FAST308 build
+(86140c1 based on main 308c17c), recorded in the
+[profiler device comparison](2026-10-11-profiler-device-results.md).
+This comparison includes all subsequent merged renderer and texture-I/O changes;
+it is not a profiler-only or immediate-pre-rebase control. Both builds retain
+Script times, off by default.
+
+| Accuracy scene | Earlier work ms/frame | Rebased work ms/frame | Change |
+| --- | ---: | ---: | ---: |
+| Opening text | 36.2 | 36.4 | +0.55% |
+| Creation screens | 132.1 | 131.4 | -0.53% |
+| Town yard | 28.3 | 26.9 | -4.95% |
+| Field | 85.8 | 82.4 | -3.96% |
+| Battle menu/attack | 124.9 | 104.3 | -16.49% |
+| Battle dodging | 171.3 | 142.1 | -17.05% |
+| Battle next turn | 118.2 | 105.6 | -10.66% |
+
+The route drops from 245.1 to 231.9 seconds: 13.2 seconds saved, or 5.39% less
+elapsed time. Load to first frame is 11.7 seconds in both. Unlike the latest
+Speed comparison, all seven scenes' rounded sprite/tile/text/background/rectangle
+call counts match. This is stronger workload agreement, but aggregate counts
+are not a pixel/PCM oracle and one pair cannot establish variance.
+
+Most dodge savings appear in drawing: 144.1/116.9 ms, versus step 18.0/17.5.
+Reported rectangle time is 20.7/8.2 and sprite time 87.8/78.3 ms. The older
+costly translucent rectangle/held-clear rows disappear from the top draw table.
+This supports a drawing-path gain without isolating individual commits or
+providing disjoint attribution. Real-time audio is coupled: dodge stereo pairs
+fall from 8,161 to 6,854, with mix 14.6/12.3 ms.
+
+The read probe is consistent with the latest Speed run: texture after music
+4.6 ms, texture after data.win 22.0 ms. The direct sprite probe does not improve
+against the older report: whole draw 110.12/113.19 microseconds, outside-view
+5.09/5.50, texture lookup 2.66/2.68. The frame gains do not imply a faster direct
+40x40 call. Outside-view cost matches the current Speed run at 5.50 microseconds.
+
+Both rebased Deltarune modes have completed on device. Undertale device coverage
+and repeatability remain unmeasured. The card tree was left untouched.
+
+Accuracy input: b5b246b4-77ae-43f6-b871-e192d410350b/deltarune_1.sav,
+131,783 bytes, SHA-256
+44ea07af8d07ce9647a1a8b2158de69bc5e660be7d157030f6fa792699559ae3.
+
+Latest Accuracy block SHA-256:
+9819bd199f72cd4aeecdaa67efc1e291c10ca5c935f93c055c2f494cff1d1e4d.
+
+Earlier FAST308 block SHA-256:
+8dbc66633b8fb2eccfa7b3ca248b06e98d935f8134f1deabded99a56ee78cf3c.
+
+Private build/rebased-device-0f7fb40/accuracy/ contains both blocks and
+comparison.json with arithmetic, call counts, timing breakdowns, hashes and
+the verified retained-Speed identities.

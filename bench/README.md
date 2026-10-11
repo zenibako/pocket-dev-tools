@@ -51,10 +51,12 @@ in Accuracy. The adapter uses modeled file reads and the frozen standalone
 128-pixel texture packs; physical DMA and the new embedded pack layout remain
 separate validation work.
 
-The [rebased Speed device report](2026-10-11-rebased-device-results.md) confirms
+The [rebased device reports](2026-10-11-rebased-device-results.md) confirm
 the embedded 64-pixel pack runs on the Pocket. The latest route is 1.46% quicker
 than the preceding unlabelled report, but battle draw counts differ; it does not
-isolate optimization gains. Accuracy device measurement remains pending.
+isolate optimization gains. Accuracy saves 5.39% over its route against the
+older FAST308 profiler build, with matching rounded draw counts; dodge saves
+17.05%. That historical comparison includes all intervening merged changes.
 
 ## Export and run revisions
 
