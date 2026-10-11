@@ -65,3 +65,32 @@ int of_file_async_busy(void){return 0;}
 static const struct of_capabilities capabilities={.heap_base=0x10800000,.heap_size=51u*1024u*1024u,.cpu_freq_hz=100000000};
 const struct of_capabilities *of_get_caps(void){return &capabilities;}
 int of_has_feature(uint32_t feature){(void)feature;return 0;}
+
+
+/* Harness texture-pack read adapter. */
+#if defined(PLATFORM_PACK_READ)
+#include "of_hooks.h"
+#include "ut_bench.h"
+#include <limits.h>
+#include <stdio.h>
+
+bool platformPackRead(const char *path, uint32_t offset,
+                      uint32_t size, void *dest) {
+    if (!path || (size && !dest) ||
+        (uint64_t) offset + size > LONG_MAX) return false;
+    FILE *file = fopen(path, "rb");
+    if (!file) return false;
+    bool ok = fseek(file, (long) offset, SEEK_SET) == 0;
+    if (ok && size) ok = fread(dest, 1, size, file) == size;
+    fclose(file);
+    return ok;
+}
+
+uint64_t platformPackRefusedNanos(void) {
+    return 0; /* Host contention is not modeled. */
+}
+
+void utPlatformReadCosts(unsigned tenths[UT_READ_COSTS]) {
+    for (unsigned i = 0; i < UT_READ_COSTS; ++i) tenths[i] = 0;
+}
+#endif

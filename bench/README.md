@@ -44,6 +44,13 @@ rebased pair: all seven Deltarune Speed scene means improve and the route saves
 0.88%. Accuracy also improves in all seven scenes, saving 0.45% over its route.
 There is one independent pair per mode; repeatable variance remains unmeasured.
 
+The [combined main comparison](2026-10-11-combined-main-results.md) tests merged
+profiler and texture-I/O changes at dd28a6e against 6100fcc. All sampled output
+and negative checks pass; Deltarune timing means improve 2.01% in Speed and 1.09%
+in Accuracy. The adapter uses modeled file reads and the frozen standalone
+128-pixel texture packs; physical DMA and the new embedded pack layout remain
+separate validation work.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
