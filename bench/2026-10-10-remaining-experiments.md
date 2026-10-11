@@ -12,9 +12,15 @@ Deltarune Speed but loses useful “Script times” diagnostics; it also provide
 gain in the Undertale timing sample. Neither is an established shared default
 optimization.
 
+The subsequent device bracket, after rebasing and rebuilding at `79ab365`,
+records a small texture win: 146.3 → 145.7 → 146.3 seconds for the full route
+(-0.41%), with field work 43.2 → 43.1 → 43.2 ms/frame. This supports retaining
+tex as a candidate. It does not establish an Accuracy or shared-game default;
+the harness matrix recorded here uses the earlier `bbea9be` source snapshot.
+
 ## Source and method
 
-All entries use `bbea9be12477bc96d4ccbab906fbcce0e9f37bc7` from the dedicated
+All harness entries use `bbea9be12477bc96d4ccbab906fbcce0e9f37bc7` from the dedicated
 `perf/draw-cost-experiments` branch, based on Pocket main `e83f1c7`.
 Its runner C/header sources match the previously measured bounds-reuse revision
 `d78c9c2`; the intervening commit records verification. Independent snapshot
@@ -108,6 +114,68 @@ Strict lint passes for both switches. Gameplay retains the documented vendored
 `stb_ds.h:1132` signed-left-shift UBSan warning; the fixture has no sanitizer
 findings. These desktop checks extend rendering coverage, not simulated timing.
 
+## Device base → tex → base after rebasing
+
+Attachment SHA-256:
+`21e0234c21636daf97ba3eddea5ad951fb23ce2aaa91f8200e9345a0d77846a8`
+(118,316 bytes). Selected report headers are at lines 273, 1127 and 1872 in
+the NUL-stripped log. The texture report at line 365 is byte-identical to line
+1127; it is one run, not a repeat. Older report headers at lines 3, 93 and 183
+belong to the preceding base/cull study and are excluded.
+
+All three selected reports identify Deltarune Chapter 1 Speed, OS 0.7.0, core
+variant 0, 100 MHz and 3,600 benchmark frames. The middle header explicitly
+records `-DUT_TEXTURE_FAST_HIT`; both surrounding headers have no experiment
+flags. Their association with `79ab365e92fe957280e42d518e2a9fbb3f8796dd` follows
+the session's rebuild/copy/run sequence and retained card manifest, rather than
+an independently recorded hash of the loaded ELF. The reports contain no source
+revision hash.
+
+Changes use the mean of the surrounding bases and the printed work values.
+
+| Section, work ms/frame | Base before | Tex | Base after | Change |
+| --- | ---: | ---: | ---: | ---: |
+| Opening text | 27.2 | 27.1 | 27.2 | -0.37% |
+| Creation screens | 66.8 | 66.5 | 66.8 | -0.45% |
+| Town yard | 27.4 | 27.4 | 27.4 | 0.00% |
+| Field | 43.2 | 43.1 | 43.2 | -0.23% |
+| Menu/attack | 65.6 | 65.3 | 65.6 | -0.46% |
+| Dodging | 77.3 | 77.2 | 77.4 | -0.19% |
+| Next turn | 61.4 | 61.4 | 61.4 | 0.00% |
+| Full route, seconds | 146.3 | 145.7 | 146.3 | -0.41% |
+
+The base section values agree at printed precision everywhere except dodge
+(0.1 ms apart). Texture has no section regression at that precision. Field draw
+is 30.4 → 30.2 → 30.4 ms/frame and step is 10.4 in all three; menu/attack draw
+is 54.1 → 53.9 → 54.1. The route saving is 0.6 seconds, so this is a small
+positive bracketed result rather than a large frame-rate change. A single
+bracket does not estimate repeatability, and 0.1-ms section rounding limits the
+precision of the percentages.
+
+| Sprite 40×40 probe, µs/call, path 1 | Base before | Tex | Base after |
+| --- | ---: | ---: | ---: |
+| Door stop | 1.03 | 1.03 | 1.03 |
+| Cumulative texture-found stop | 2.66 | 2.11 | 2.66 |
+| Whole inside-view draw | 60.48 | 58.70 | 59.24 |
+| Outside-view draw | 5.10 | 4.55 | 5.10 |
+
+The stable door and texture-found base controls place a 0.55-µs saving before
+the texture-found stop. That cumulative stop includes the entry work; it is not
+a texture-lookup-only timer. Outside-view cost falls by 10.78%. Whole inside-view
+cost falls by 1.94% against the mean control, but the controls themselves differ
+by 1.24 µs, so that whole-draw percentage is less stable. The fast-hit path and
+compiled layout both differ; the probe does not isolate their contributions.
+
+Actual audio work also illustrates why timings need controls: field output is
+2,108 → 2,099 → 2,105 sample pairs/frame; dodge is 3,736 → 3,730 → 3,741.
+The harness instead fixes 800 pairs/frame. The device difference is consistent
+with a queue fed according to elapsed time; it does not prove audio caused the
+measured renderer saving. Draw-call counts agree across all three runs.
+
+Private extraction and checked calculations are retained in
+`build/texture-device-79ab365/device-base-tex-base.json` and `reports.txt`.
+No game source change, device rebuild or SD-card write is part of this analysis.
+
 ## Decision boundaries
 
 The [revised cull study](2026-10-10-cull-reuse-results.md) already rejects promoting
@@ -126,12 +194,14 @@ exact instruction/call counts, balanced depth and off/on frame-boundary toggles.
 The compile-out results cannot prove that a feature-preserving change would save
 the same time. The generic VM profiler API does not promise a stable pointer.
 
-No remaining screened flag is ready to become a shared default. If another
-device experiment is wanted, run **Deltarune Benchmark speed base → tex → base**
-from the current experiment tree and compare the field section first, while
-retaining the other sections and full route as regression checks. The small
-simulated field gain needs that bracketed physical check; it is not a promise of
-a measurable route improvement. Prof remains an optional diagnostic control.
+No remaining screened flag is ready to become a shared default. The recommended
+**Deltarune Benchmark speed base → tex → base** bracket, comparing field first
+and retaining other sections/route as regression checks, is now complete above and
+shows a small physical gain. Keep tex available as a candidate; promotion still
+needs evidence for the target Accuracy mode and affected shared-game paths.
+Prof remains an optional diagnostic control. A feature-preserving reduction of
+dormant profiler overhead is the next implementation question to screen in the
+harness, with the diagnostic feature retained; it has not been implemented here.
 
 ## Evidence and limits
 

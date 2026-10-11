@@ -25,6 +25,9 @@ same-source controls at `bbea9be`, after rebasing onto main `e83f1c7`. Texture
 fast-hit and profiler compile-out pass both games' sampled output checks. Texture
 helps only the field sample modestly; profiler removal saves Deltarune time but
 loses script diagnostics. Neither is established as a shared default improvement.
+The subsequent `79ab365` device base/tex/base bracket records a small texture
+gain: 0.41% for the Speed route, with matching surrounding base route times.
+The device source includes newer main optimizations than the harness snapshot.
 
 ## Export and run revisions
 
