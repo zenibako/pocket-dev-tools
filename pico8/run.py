@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import run as base
 import route as routes
+import snapshot
+import gc_trace as traces
 
 IMAGE = 'undertale-vm-os25-frames:local'
 PRIVATE = ROOT / 'experiments/pico8'
@@ -69,9 +71,12 @@ def create(source, archive, name, route=None):
     shutil.copytree(ROOT / 'pico8', case / 'pico8', ignore=shutil.ignore_patterns('__pycache__'))
     if route:
         save(case / 'pico8/route.json', route)
+    snapshot.prepare(case / 'source', route or {})
     (case / 'platform').mkdir()
     for filename in ['bridge.c', 'start.S', 'link.ld']:
         shutil.copy2(ROOT / 'fullframe' / filename, case / 'platform' / filename)
+    bridge = case / 'platform/bridge.c'
+    bridge.write_text(bridge.read_text().replace('frame_expected[3]', 'frame_expected[PICO_MEASURED_FRAMES]'))
     simulator = ROOT / 'build/fullframe/rtl/obj/Vtb_system'
     shutil.copy2(simulator, case / 'simulator')
     records = []
@@ -94,8 +99,8 @@ def create(source, archive, name, route=None):
                     frozen_input_manifest_sha256=sha(ROOT / 'input-manifest.json'),
                     cpu_lock_sha256=sha(ROOT / 'cpu-lock.json'),
                     cpu_sha256=sha(base.CPU), simulator_sha256=sha(simulator),
-                    platform='os25 100MHz; shipped Pico8Pocket uses os20', warmup_frames=180,
-                    measured_frames=3, native_frames=600, input_seed=7, route=route or {},
+                    platform='os25 100MHz; shipped Pico8Pocket uses os20', warmup_frames=(route or {}).get('warmup_frames', 180),
+                    measured_frames=(route or {}).get('measured_frames', 3), native_frames=(route or {}).get('native_frames', 600), input_seed=7, route=route or {},
                     audio='fixed 48000/FPS pairs per frame; no hardware scheduling',
                     evidence_scope='cart runtime, indexed pixels, display palette and PCM; no OS/menu/SD/GPU')
     save(case / 'case.json', manifest)
@@ -128,7 +133,7 @@ def build(case, reuse_native=None):
     names = 'eris lapi lauxlib lbaselib lcode lcorolib lctype ldblib ldebug ldo ldump lfunc lgc linit llex lmem lobject lopcodes lparser lpico8lib lstate lstring lstrlib ltable ltablib ltm lundump lvm lzio'.split()
     flags = ['-x', 'c++', '-std=c++17', '-O2', '-fwrapv', '-DPICO_NATIVE', '-DLUA_USE_LONGJMP',
                '-Wno-deprecated-declarations',
-               '-I' + str(p / 'include'), '-I' + str(z), '-I' + str(p / '.deps/fake-08/libs/miniz'),
+               '-I' + str(case / 'pico8'), '-I' + str(p / 'include'), '-I' + str(z), '-I' + str(p / '.deps/fake-08/libs/miniz'),
               ] + routes.flags(case / 'pico8')
     paths = [case / 'pico8/runner.cpp', *[p / 'src/runtime' / n for n in ['runtime.cpp', 'cart.c', 'cart_png.c', 'audio.c']],
              *[z / (n + '.c') for n in names], p / '.deps/fake-08/libs/miniz/miniz.c']
@@ -143,7 +148,7 @@ def build(case, reuse_native=None):
         previous = reuse_native.resolve()
         old = checked(previous)
         current = checked(case)
-        inputs = lambda m: {n: h for n, h in m['files'].items() if n.startswith('source/') or n == 'pico8/runner.cpp'}
+        inputs = lambda m: {n: h for n, h in m['files'].items() if n.startswith('source/') or n.startswith('pico8/')}
         if inputs(old) != inputs(current) or old['carts'] != current['carts']:
             raise ValueError('Cannot import native evidence for different source or carts')
         shutil.copy2(previous / 'build/native', d / 'native')
@@ -166,7 +171,7 @@ def build(case, reuse_native=None):
     save(d / 'binaries.json', {str(p.relative_to(case)): sha(p) for p in [d / 'native', d / 'pico8/program.elf', d / 'pico8/bram.bin', d / 'pico8/build.json']})
 
 
-def parse(log, count):
+def parse(log, count, first=None):
     text = log.read_text()
     if '=== UART BEGIN ===' in text:
         transcripts = re.findall(r'=== UART BEGIN ===\n(.*?)\n=== UART END ===', text, re.S)
@@ -181,7 +186,7 @@ def parse(log, count):
         cycles.append(int(elapsed))
     if len(rows) != count or 'PICOHARNESS PASS HAL init' not in text or 'FRAMEHARNESS FAIL' in text:
         raise ValueError('Incomplete or failed cart run')
-    first = 0 if count == 600 else 180
+    if first is None: first = 0 if count == 600 else 180
     if [r[0] for r in rows] != list(range(first, first + count)):
         raise ValueError('Wrong frame sequence')
     return rows, cycles
@@ -189,14 +194,15 @@ def parse(log, count):
 
 def native(case, cart):
     folder = case / 'carts' / cart['id']
+    count = checked(case)['native_frames']
     codes = []
     for repeat in range(2):
-        codes.append(execute([str(case / 'build/native'), str(folder / 'cart.bin'), '600'], folder / f'native-{repeat}.log', timeout=120))
+        codes.append(execute([str(case / 'build/native'), str(folder / 'cart.bin'), str(count)], folder / f'native-{repeat}.log', timeout=120))
     status = dict(returncodes=codes, passed=False, completed=codes == [0, 0],
                   logs={f'native-{r}.log': sha(folder / f'native-{r}.log') for r in range(2)})
     if codes == [0, 0]:
-        a, _ = parse(folder / 'native-0.log', 600)
-        b, _ = parse(folder / 'native-1.log', 600)
+        a, _ = parse(folder / 'native-0.log', count, 0)
+        b, _ = parse(folder / 'native-1.log', count, 0)
         status.update(passed=a == b, repeat_equal=a == b, fps=a[-1][6], distinct_pixels=len({r[1] for r in a}))
     save(folder / 'native.json', status)
     return status
@@ -204,6 +210,8 @@ def native(case, cart):
 
 def capture(case, cart):
     folder = case / 'carts' / cart['id']
+    manifest = checked(case)
+    count, first = manifest['measured_frames'], manifest['warmup_frames']
     codes = []
     for repeat in range(2):
         work = folder / f'qemu-{repeat}'
@@ -214,21 +222,21 @@ def capture(case, cart):
     status = dict(returncodes=codes, passed=False,
                   logs={f'qemu-{r}/capture.log': sha(folder / f'qemu-{r}/capture.log') for r in range(2)})
     if codes == [0, 0]:
-        a, _ = parse(folder / 'qemu-0/capture.log', 3)
-        b, _ = parse(folder / 'qemu-1/capture.log', 3)
+        a, _ = parse(folder / 'qemu-0/capture.log', count, first)
+        b, _ = parse(folder / 'qemu-1/capture.log', count, first)
         hashes = [{name: sha(folder / f'qemu-{r}' / name) for name in ['checkpoint.bin', 'stack.bin', 'capture.log']} for r in range(2)]
         status.update(passed=a == b and hashes[0] == hashes[1], rows=a, repeat_hashes=hashes)
         host = json.loads((folder / 'native.json').read_text())
         if host['passed']:
-            n, _ = parse(folder / 'native-0.log', 600)
-            status['native_output_equal'] = n[180:183] == a
+            n, _ = parse(folder / 'native-0.log', manifest['native_frames'], 0)
+            status['native_output_equal'] = n[first:first+count] == a
         if status['passed']:
             build = json.loads((case / 'build/pico8/build.json').read_text())
             checkpoint = bytearray((folder / 'qemu-0/checkpoint.bin').read_bytes())
             offset = build['symbols']['frame_expected'] - 0x10400000
-            if offset < 0 or offset + 96 > len(checkpoint):
+            if offset < 0 or offset + count * 32 > len(checkpoint):
                 raise ValueError('Expected oracle storage outside checkpoint')
-            checkpoint[offset:offset+96] = struct.pack('<24I', *[x for row in a for x in row])
+            checkpoint[offset:offset+count*32] = struct.pack('<' + str(count*8) + 'I', *[x for row in a for x in row])
             (folder / 'program.bin').write_bytes(checkpoint)
             shutil.copy2(folder / 'qemu-0/stack.bin', folder / 'stack.bin')
             bram = bytearray(struct.pack('<I', 0x13) * 8192)
@@ -260,8 +268,9 @@ def replay(case, cart, traffic='quiet', negative=False):
                SCAN_ACTIVE=480, SCAN_TOTAL=525, SCAN_BASE_HW='0x1800000',
                STRIKE_SCAN_PERIOD=1000000000, CACHE_PROFILE=0,
                FRAME_BAD_ORACLE=int(negative), FRAME_EXPECTED_ADDRESS=build['symbols']['frame_expected'])
-    code = execute(docker(case, ['/work/simulator', 'program.bin', '50000000'], str(dest.relative_to(case)), env),
-                   dest / 'rtl.log', timeout=900)
+    manifest = checked(case)
+    code = execute(docker(case, ['/work/simulator', 'program.bin', str(max(50000000, manifest['measured_frames'] * 20000000))], str(dest.relative_to(case)), env),
+                   dest / 'rtl.log', timeout=max(900, manifest['measured_frames'] * 300))
     return finish_replay(case, cart, traffic, negative, code)
 
 
@@ -284,7 +293,7 @@ def finish_replay(case, cart, traffic, negative, code):
     if negative:
         result['passed'] = code == 2 and memory and 'pixel/palette/PCM/input/FPS oracle' in text
     elif code == 0:
-        rows, cycles = parse(dest / 'rtl.log', 3)
+        rows, cycles = parse(dest / 'rtl.log', checked(case)['measured_frames'], checked(case)['warmup_frames'])
         result.update(passed=memory and rows == capture['rows'], rows=rows, cycles=cycles,
                       simulated_ms=[n / 100000 for n in cycles])
     save(dest / 'results.json', result)
@@ -330,8 +339,8 @@ def report(case):
                         raise ValueError('Changed capture log: ' + name)
                 if result.get('passed'):
                     if phase == 'native':
-                        a, _ = parse(folder / 'native-0.log', 600)
-                        b, _ = parse(folder / 'native-1.log', 600)
+                        a, _ = parse(folder / 'native-0.log', manifest['native_frames'], 0)
+                        b, _ = parse(folder / 'native-1.log', manifest['native_frames'], 0)
                         if a != b:
                             raise ValueError('Native repeat mismatch')
                     elif phase == 'qemu':
@@ -339,7 +348,7 @@ def report(case):
                             for name, digest in hashes.items():
                                 if sha(folder / f'qemu-{r}' / name) != digest:
                                     raise ValueError('Changed QEMU evidence: ' + name)
-                            rows, _ = parse(folder / f'qemu-{r}/capture.log', 3)
+                            rows, _ = parse(folder / f'qemu-{r}/capture.log', manifest['measured_frames'], manifest['warmup_frames'])
                             if rows != result['rows']:
                                 raise ValueError('Changed QEMU rows')
                     else:
@@ -347,7 +356,7 @@ def report(case):
                         if sha(log) != result['log_sha256']:
                             raise ValueError('Changed RTL log')
                         if phase != 'negative':
-                            rows, cycles = parse(log, 3)
+                            rows, cycles = parse(log, manifest['measured_frames'], manifest['warmup_frames'])
                             if rows != result['rows'] or cycles != result['cycles'] or rows != row['qemu']['rows']:
                                 raise ValueError('Changed RTL result rows')
         if row.get('qemu', {}).get('passed'):
@@ -367,9 +376,9 @@ def report(case):
     save(case / 'results.json', dict(manifest=manifest, results=results))
     lines = ['# Pico8Pocket supplied-cart test results', '',
              f"Source revision: `{manifest['source_revision']}`. {len(results)} ZIP cart entries.", '',
-             'The runtime smoke route runs 600 frames twice on the native host, with seed-7 scripted six-button input and fixed 48 kHz audio rendering. RV32 QEMU runs 180 warm-up frames, captures a checkpoint twice, and emits independent pixel, palette, PCM, input and FPS oracles for frames 180–182. RTL resumes that exact binary and process state.', '',
+             f"The runtime smoke route runs {manifest['native_frames']} frames twice on the native host, with seed-7 scripted six-button input and fixed 48 kHz audio rendering. RV32 QEMU runs {manifest['warmup_frames']} warm-up frames, captures a checkpoint twice, and emits independent pixel, palette, PCM, input and FPS oracles for frames {manifest['warmup_frames']}–{manifest['warmup_frames']+manifest['measured_frames']-1}. RTL resumes that exact binary and process state.", '',
              '**Platform limit:** RTL is os25 at a simulated 100 MHz. Pico8Pocket ships os20. These tests do not establish shipped-core performance, whole-game compatibility, Pocket display/audio scheduling, SD saves or system-menu behavior.', '',
-             '| Cart | Target FPS | Estimated os25 FPS | Native ×2 (600 frames) | QEMU ×2 (183 frames) | os25 RTL (3 frames) | Simulated frame ms |',
+             f"| Cart | Target FPS | Estimated os25 FPS | Native ×2 ({manifest['native_frames']} frames) | QEMU ×2 ({manifest['warmup_frames']+manifest['measured_frames']} frames) | os25 RTL ({manifest['measured_frames']} frames) | Simulated frame ms |",
              '|---|---:|---:|---|---|---|---|']
     completed = sum(r.get('native', {}).get('completed', False) for r in results)
     repeatable = sum(r.get('native', {}).get('passed', False) for r in results)
@@ -429,13 +438,18 @@ def report(case):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('action', choices=['create', 'build', 'native', 'capture', 'replay', 'analyze', 'report', 'all'])
+    ap.add_argument('action', choices=['create', 'build', 'native', 'capture', 'replay', 'analyze', 'trace', 'report', 'all'])
     ap.add_argument('--case', type=Path)
     ap.add_argument('--source', type=Path)
     ap.add_argument('--archive', type=Path)
     ap.add_argument('--name')
     ap.add_argument('--setup', help='create: Lua expression evaluated once after cart load')
     ap.add_argument('--input', choices=['seed7', 'none'], default='seed7', help='create: button route')
+    ap.add_argument('--hash-seed', type=lambda s: int(s, 0), help='create: final unsigned 32-bit Lua hash seed')
+    ap.add_argument('--warmup-frames', type=int, default=180)
+    ap.add_argument('--measure-frames', type=int, default=3)
+    ap.add_argument('--trace-frames', type=int, default=600)
+    ap.add_argument('--trace-gc', action='store_true', help='create: diagnostic allocator and GC hooks')
     ap.add_argument('--cart', help='Exact cart ID, e.g. 000')
     ap.add_argument('--jobs', type=int, default=4)
     ap.add_argument('--traffic', choices=['quiet', 'scanout'], default='quiet')
@@ -446,7 +460,7 @@ def main():
     if args.action == 'create':
         if not all([args.source, args.archive, args.name]):
             ap.error('create requires --source, --archive, --name')
-        create(args.source, args.archive, args.name, routes.validate(args.setup, args.input))
+        create(args.source, args.archive, args.name, routes.validate(args.setup, args.input, args.hash_seed, args.warmup_frames, args.measure_frames, args.trace_frames, args.trace_gc))
         return
     if not args.case:
         ap.error('Specify --case')
@@ -461,6 +475,8 @@ def main():
         build(case, args.reuse_native_from)
     if args.action in ['native', 'all']:
         parallel(case, pending('native.json'), native, args.jobs)
+    if args.action == 'trace':
+        parallel(case, pending('trace.json'), lambda c,r: traces.collect(c,r,sys.modules[__name__]), args.jobs)
     if args.action in ['capture', 'all']:
         parallel(case, pending('capture.json'), capture, args.jobs)
     if args.action in ['replay', 'all']:

@@ -20,10 +20,10 @@ def build():
               '-falign-functions=64', '-falign-loops=64', '-fno-tree-loop-distribute-patterns',
               '-ffreestanding', '-nostdinc', '-isystem', '/work/musl/include', '-D_GNU_SOURCE',
               '-I/work/pico8', '-I/work/sdk/include', '-I' + str(p / 'include'),
-              '-I' + str(z), '-I' + str(p / '.deps/fake-08/libs/miniz')]
+              '-I' + str(z), '-I' + str(p / '.deps/fake-08/libs/miniz')] + routes.flags(ROOT / 'pico8')
     cpp = ['-x', 'c++', '-std=c++17', '-fwrapv', '-DLUA_USE_LONGJMP', '-fno-exceptions',
            '-fno-rtti', '-fno-threadsafe-statics', '-include', 'stdlib.h',
-           '-include', str(p / 'include/p8p/vm_fasttext.h'), '-I' + str(p / 'src/compat/cxx')] + routes.flags(ROOT / 'pico8')
+           '-include', str(p / 'include/p8p/vm_fasttext.h'), '-I' + str(p / 'src/compat/cxx')]
     jobs = [(z / (name + '.c'), cpp) for name in names]
     jobs += [(p / 'src/runtime' / name, cpp) for name in ['runtime.cpp', 'cart.c', 'cart_png.c', 'audio.c']]
     jobs += [(ROOT / 'pico8/runner.cpp', cpp), (ROOT / 'source/.deps/fake-08/libs/miniz/miniz.c', ['-std=c11']),
