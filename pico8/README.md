@@ -51,6 +51,13 @@ that fails before replay has a target rate where available, but no estimate.
 These short samples can remain on title screens and exclude presentation,
 OS scheduling and adaptive draw skipping; they are not measured Pocket FPS.
 
+`create --setup EXPR` evaluates one Lua expression after cart load, through the
+port's `P8P_RUNTIME_DEBUG` hook, to reach a chosen scene; `--input none` holds
+no buttons in every frame instead of the seed-7 route. Both are recorded in
+`case.json` and `pico8/route.json`, are part of the case inventory and apply to
+the native, QEMU and RTL runs alike. Compare cases only with the same route.
+Without either option the build flags and route are unchanged.
+
 Use `--cart ID` to restrict a phase. For a repeatable cart, verify diagnostic
 scanout and a deliberately corrupted pixel oracle as controls:
 

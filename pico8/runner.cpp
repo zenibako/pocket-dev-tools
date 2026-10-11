@@ -17,6 +17,10 @@ static unsigned hash(const void *data, size_t size) {
 
 // Match compat_scan.cpp's seed-7 route, limited to the six game buttons.
 static unsigned input(unsigned frame, unsigned *rng) {
+#ifdef PICO_INPUT_NONE
+    (void)frame; (void)rng;
+    return 0;
+#endif
     if (frame < 90) return 0;
     if (frame == 90 || frame == 150 || frame == 210) return 1u << 4;
     *rng = *rng * 1664525u + 1013904223u;
@@ -64,6 +68,10 @@ static void run(const char *path, unsigned total) {
     if (loaded) fail("cart decode", 0);
     p8p_runtime_t *rt = p8p_runtime_create();
     if (!rt || p8p_runtime_load(rt, &cart)) fail(rt ? p8p_runtime_error(rt) : "runtime allocation", 0);
+#ifdef PICO_SETUP
+    int setup_value = 0;
+    if (p8p_runtime_debug_eval_int(rt, PICO_SETUP, &setup_value)) fail("setup expression", 0);
+#endif
     unsigned rng = 7;
     int16_t pcm[1600 * 2];
     for (unsigned frame = 0; frame < total; ++frame) {

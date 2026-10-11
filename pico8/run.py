@@ -17,6 +17,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import run as base
+import route as routes
 
 IMAGE = 'undertale-vm-os25-frames:local'
 PRIVATE = ROOT / 'experiments/pico8'
@@ -51,7 +52,7 @@ def execute(command, log, timeout=600):
     return code
 
 
-def create(source, archive, name):
+def create(source, archive, name, route=None):
     base.verify_inputs()
     if not re.fullmatch('[a-z0-9][a-z0-9-]*', name):
         raise ValueError('Use a simple case name')
@@ -66,6 +67,8 @@ def create(source, archive, name):
     shutil.copytree(ROOT / 'inputs/sdk/musl', case / 'musl')
     shutil.copytree(ROOT / 'inputs/sdk/include', case / 'sdk/include')
     shutil.copytree(ROOT / 'pico8', case / 'pico8', ignore=shutil.ignore_patterns('__pycache__'))
+    if route:
+        save(case / 'pico8/route.json', route)
     (case / 'platform').mkdir()
     for filename in ['bridge.c', 'start.S', 'link.ld']:
         shutil.copy2(ROOT / 'fullframe' / filename, case / 'platform' / filename)
@@ -92,7 +95,7 @@ def create(source, archive, name):
                     cpu_lock_sha256=sha(ROOT / 'cpu-lock.json'),
                     cpu_sha256=sha(base.CPU), simulator_sha256=sha(simulator),
                     platform='os25 100MHz; shipped Pico8Pocket uses os20', warmup_frames=180,
-                    measured_frames=3, native_frames=600, input_seed=7,
+                    measured_frames=3, native_frames=600, input_seed=7, route=route or {},
                     audio='fixed 48000/FPS pairs per frame; no hardware scheduling',
                     evidence_scope='cart runtime, indexed pixels, display palette and PCM; no OS/menu/SD/GPU')
     save(case / 'case.json', manifest)
@@ -126,7 +129,7 @@ def build(case, reuse_native=None):
     flags = ['-x', 'c++', '-std=c++17', '-O2', '-fwrapv', '-DPICO_NATIVE', '-DLUA_USE_LONGJMP',
                '-Wno-deprecated-declarations',
                '-I' + str(p / 'include'), '-I' + str(z), '-I' + str(p / '.deps/fake-08/libs/miniz'),
-              ]
+              ] + routes.flags(case / 'pico8')
     paths = [case / 'pico8/runner.cpp', *[p / 'src/runtime' / n for n in ['runtime.cpp', 'cart.c', 'cart_png.c', 'audio.c']],
              *[z / (n + '.c') for n in names], p / '.deps/fake-08/libs/miniz/miniz.c']
     objdir = d / 'native-objects'
@@ -396,6 +399,9 @@ def report(case):
             lines.append(f"- `{row['name']}` completed both native runs, but pixel/palette/PCM rows differed. Native Lua hash seeding includes wall time and process addresses; RV32 uses a virtual clock and fixed addresses. Treat this as a reproducibility finding, not proof of a game bug.")
         if row.get('rtl') and not row['rtl']['passed']:
             lines.append(f"- `{row['name']}` RTL failed with return code {row['rtl']['returncode']}; see `carts/{row['id']}/quiet/rtl.log`.")
+    if manifest.get('route'):
+        lines += ['', '**Route override:** ' + json.dumps(manifest['route'], sort_keys=True) +
+                  '. A setup expression is evaluated once after cart load; input `none` replaces the seed-7 route with no buttons in every frame.']
     previews = case / 'previews-final/contact-sheet.png'
     if previews.exists():
         lines += ['', '## Native frame previews', '',
@@ -428,6 +434,8 @@ def main():
     ap.add_argument('--source', type=Path)
     ap.add_argument('--archive', type=Path)
     ap.add_argument('--name')
+    ap.add_argument('--setup', help='create: Lua expression evaluated once after cart load')
+    ap.add_argument('--input', choices=['seed7', 'none'], default='seed7', help='create: button route')
     ap.add_argument('--cart', help='Exact cart ID, e.g. 000')
     ap.add_argument('--jobs', type=int, default=4)
     ap.add_argument('--traffic', choices=['quiet', 'scanout'], default='quiet')
@@ -438,7 +446,7 @@ def main():
     if args.action == 'create':
         if not all([args.source, args.archive, args.name]):
             ap.error('create requires --source, --archive, --name')
-        create(args.source, args.archive, args.name)
+        create(args.source, args.archive, args.name, routes.validate(args.setup, args.input))
         return
     if not args.case:
         ap.error('Specify --case')

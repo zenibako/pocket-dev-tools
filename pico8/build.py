@@ -4,6 +4,7 @@ import hashlib
 import json
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+import route as routes
 
 ROOT = Path('/work')
 
@@ -22,7 +23,7 @@ def build():
               '-I' + str(z), '-I' + str(p / '.deps/fake-08/libs/miniz')]
     cpp = ['-x', 'c++', '-std=c++17', '-fwrapv', '-DLUA_USE_LONGJMP', '-fno-exceptions',
            '-fno-rtti', '-fno-threadsafe-statics', '-include', 'stdlib.h',
-           '-include', str(p / 'include/p8p/vm_fasttext.h'), '-I' + str(p / 'src/compat/cxx')]
+           '-include', str(p / 'include/p8p/vm_fasttext.h'), '-I' + str(p / 'src/compat/cxx')] + routes.flags(ROOT / 'pico8')
     jobs = [(z / (name + '.c'), cpp) for name in names]
     jobs += [(p / 'src/runtime' / name, cpp) for name in ['runtime.cpp', 'cart.c', 'cart_png.c', 'audio.c']]
     jobs += [(ROOT / 'pico8/runner.cpp', cpp), (ROOT / 'source/.deps/fake-08/libs/miniz/miniz.c', ['-std=c11']),
