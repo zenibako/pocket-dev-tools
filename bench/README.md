@@ -41,7 +41,8 @@ separate feature-preserving base/profiler Pocket entries.
 
 The [Pocket profiler result](2026-10-11-profiler-device-results.md) measures the
 rebased pair: all seven Deltarune Speed scene means improve and the route saves
-0.88%. This is one independent pair; Accuracy remains unmeasured on the device.
+0.88%. Accuracy also improves in all seven scenes, saving 0.45% over its route.
+There is one independent pair per mode; repeatable variance remains unmeasured.
 
 ## Export and run revisions
 
