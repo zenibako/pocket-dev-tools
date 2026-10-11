@@ -29,6 +29,12 @@ The subsequent `79ab365` device base/tex/base bracket records a small texture
 gain: 0.41% for the Speed route, with matching surrounding base route times.
 The device source includes newer main optimizations than the harness snapshot.
 
+The [feature-preserving profiler follow-up](2026-10-10-profiler-off-results.md)
+compares `79ab365` and `0f4afe1`, based on main `05b0eef`. Script times stays in
+the debug menu. Timing builds improve 0.51% in Undertale Speed, 0.30% in
+Deltarune Speed, and 0.79% in Deltarune Accuracy; all twelve positive and
+negative RTL controls and output comparisons pass. Device testing remains.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
