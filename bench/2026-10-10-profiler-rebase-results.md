@@ -57,6 +57,10 @@ in the machine-readable report.
 
 ## Pocket rebuild
 
+The [2026-10-11 device follow-up](2026-10-11-profiler-device-results.md) records
+the subsequently uploaded Speed pair: dodge work improves 0.89% and the complete
+route saves 0.88%. One independent pair does not establish repeatable variance.
+
 The old 79ab365 card tree and ordinary objects were preserved before rebuilding.
 The ordinary entries use candidate source. The paired builds use independent
 Git exports in equal-length base308/fast308 directories and fresh objects, with

@@ -39,6 +39,10 @@ The [rebased profiler comparison](2026-10-10-profiler-rebase-results.md) repeats
 that matrix on main 308c17c using fresh e484ccc/86140c1 snapshots, and prepares
 separate feature-preserving base/profiler Pocket entries.
 
+The [Pocket profiler result](2026-10-11-profiler-device-results.md) measures the
+rebased pair: all seven Deltarune Speed scene means improve and the route saves
+0.88%. This is one independent pair; Accuracy remains unmeasured on the device.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
