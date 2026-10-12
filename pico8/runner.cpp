@@ -132,7 +132,7 @@ static void run(const char *path, unsigned total, bool long_trace=false) {
 #ifdef PICO_NATIVE
     emit("PICOTIME unit=ns source=CLOCK_MONOTONIC\n");
 #else
-    emit(frame_host ? "PICOTIME unit=none source=QEMU\n" : "PICOTIME unit=cycles source=RTL100MHz\n");
+    emit(frame_host ? "PICOTIME unit=none source=QEMU\n" : "PICOTIME unit=cycles source=RTL_MMIO\n");
 #endif
 #endif
     unsigned rng = 7;
@@ -140,6 +140,14 @@ static void run(const char *path, unsigned total, bool long_trace=false) {
     for (unsigned frame = 0; frame < total; ++frame) {
 #ifndef PICO_NATIVE
         if (!long_trace && frame == PICO_WARMUP_FRAMES) frame_suspend();
+#ifdef PICO_CPU_HZ
+        if (!frame_host && frame == PICO_WARMUP_FRAMES) {
+            unsigned hz = *(volatile unsigned *)0x400000d4u;
+            if (hz != PICO_CPU_HZ) fail("CPU clock register mismatch", frame);
+            char clock_line[64];
+            snprintf(clock_line, sizeof(clock_line), "PICOCPU %u\n", hz); emit(clock_line);
+        }
+#endif
         frame_clock = (uint64_t)frame * 1000000000ull / (unsigned)p8p_runtime_target_fps(rt);
 #endif
         unsigned buttons = input(frame, &rng);

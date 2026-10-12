@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Isolated Pico8Pocket cart smoke tests and same-ELF os25 frame replay."""
+"""Isolated Pico8Pocket cart smoke tests and same-ELF os20/os25 frame replay."""
 import argparse
 import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,6 +20,7 @@ import run as base
 import route as routes
 import snapshot
 import gc_trace as traces
+import cpu_platform
 
 IMAGE = 'undertale-vm-os25-frames:local'
 PRIVATE = ROOT / 'experiments/pico8'
@@ -54,8 +55,11 @@ def execute(command, log, timeout=600):
     return code
 
 
-def create(source, archive, name, route=None):
+def create(source, archive, name, route=None, platform='os25'):
     base.verify_inputs()
+    if platform not in ('os20', 'os25'):
+        raise ValueError('Unsupported Pico8 replay platform')
+    platform_meta = cpu_platform.checked() if platform == 'os20' else None
     if not re.fullmatch('[a-z0-9][a-z0-9-]*', name):
         raise ValueError('Use a simple case name')
     case = PRIVATE / name
@@ -77,7 +81,8 @@ def create(source, archive, name, route=None):
         shutil.copy2(ROOT / 'fullframe' / filename, case / 'platform' / filename)
     bridge = case / 'platform/bridge.c'
     bridge.write_text(bridge.read_text().replace('frame_expected[3]', 'frame_expected[PICO_MEASURED_FRAMES]'))
-    simulator = ROOT / 'build/fullframe/rtl/obj/Vtb_system'
+    simulator = (cpu_platform.PLATFORM / 'rtl/obj/Vtb_system' if platform_meta else
+                 ROOT / 'build/fullframe/rtl/obj/Vtb_system')
     shutil.copy2(simulator, case / 'simulator')
     records = []
     with zipfile.ZipFile(archive) as z:
@@ -98,8 +103,11 @@ def create(source, archive, name, route=None):
                     harness_revision=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip(),
                     frozen_input_manifest_sha256=sha(ROOT / 'input-manifest.json'),
                     cpu_lock_sha256=sha(ROOT / 'cpu-lock.json'),
-                    cpu_sha256=sha(base.CPU), simulator_sha256=sha(simulator),
-                    platform='os25 100MHz; shipped Pico8Pocket uses os20', warmup_frames=(route or {}).get('warmup_frames', 180),
+                    cpu_sha256=platform_meta['cpu_sha256'] if platform_meta else sha(base.CPU), simulator_sha256=sha(simulator),
+                    platform=platform_meta['provenance'] if platform_meta else 'os25 100MHz; shipped Pico8Pocket uses os20',
+                    platform_name=platform, clock_hz=90000000 if platform_meta else 100000000,
+                    scan_period=2858 if platform_meta else 3175, platform_manifest=platform_meta,
+                    warmup_frames=(route or {}).get('warmup_frames', 180),
                     measured_frames=(route or {}).get('measured_frames', 3), native_frames=(route or {}).get('native_frames', 600), input_seed=7, route=route or {},
                     audio='fixed 48000/FPS pairs per frame; no hardware scheduling',
                     evidence_scope='cart runtime, indexed pixels, display palette and PCM; no OS/menu/SD/GPU')
@@ -113,6 +121,19 @@ def checked(case):
     if not case.is_relative_to(PRIVATE.resolve()):
         raise ValueError('Expected an isolated case under experiments/pico8')
     manifest = json.loads((case / 'case.json').read_text())
+    platform = manifest.get('platform_name', 'os25')
+    expected_clock = {'os20': 90000000, 'os25': 100000000}
+    if platform not in expected_clock or manifest.get('clock_hz', 100000000) != expected_clock[platform]:
+        raise ValueError('Invalid CPU platform/clock identity')
+    if manifest.get('scan_period', 3175) != {'os20': 2858, 'os25': 3175}[platform]:
+        raise ValueError('Invalid CPU platform/scanout cadence')
+    if platform == 'os20':
+        identity = manifest['platform_manifest']
+        if (identity['name'] != platform or identity['clock_hz'] != manifest['clock_hz'] or
+            identity['cpu_sha256'] != manifest['cpu_sha256'] or
+            identity['simulator_sha256'] != manifest['simulator_sha256'] or
+            identity['scan_period'] != manifest['scan_period']):
+            raise ValueError('Mismatched os20 platform provenance')
     for name, digest in manifest['files'].items():
         if sha(case / name) != digest:
             raise ValueError('Snapshot changed: ' + name)
@@ -264,11 +285,11 @@ def replay(case, cart, traffic='quiet', negative=False):
     for name in ['program.bin', 'stack.bin', 'firmware.mif']:
         (dest / name).symlink_to('../' + name)
     build = json.loads((case / 'build/pico8/build.json').read_text())
-    env = dict(SCAN_ENABLE=int(traffic == 'scanout'), SCAN_PERIOD=3175, SCAN_LEN=80,
+    manifest = checked(case)
+    env = dict(SCAN_ENABLE=int(traffic == 'scanout'), SCAN_PERIOD=manifest.get('scan_period', 3175), SCAN_LEN=80,
                SCAN_ACTIVE=480, SCAN_TOTAL=525, SCAN_BASE_HW='0x1800000',
                STRIKE_SCAN_PERIOD=1000000000, CACHE_PROFILE=0,
                FRAME_BAD_ORACLE=int(negative), FRAME_EXPECTED_ADDRESS=build['symbols']['frame_expected'])
-    manifest = checked(case)
     code = execute(docker(case, ['/work/simulator', 'program.bin', str(max(50000000, manifest['measured_frames'] * 20000000))], str(dest.relative_to(case)), env),
                    dest / 'rtl.log', timeout=max(900, manifest['measured_frames'] * 300))
     return finish_replay(case, cart, traffic, negative, code)
@@ -285,6 +306,9 @@ def finish_replay(case, cart, traffic, negative, code):
     if (dest / 'results.json').exists():
         raise ValueError('Preserve previous replay analysis')
     text = (dest / 'rtl.log').read_text()
+    manifest = checked(case)
+    if manifest.get('platform_name') == 'os20' and not re.search(r'^PICOCPU 90000000$', text, re.M):
+        raise ValueError('Missing actual os20 MMIO clock validation')
     memory = all(token in text for token in ['SDRAM errors=0',
         'R mismatches=0  scanout mismatches=0  rlast slips=0  orphan beats=0  DRAM strikes=0',
         'WCONF: mism=0 spurious=0 exp_fifo=0 aw_fifo=0 run_left=0'])
@@ -295,7 +319,7 @@ def finish_replay(case, cart, traffic, negative, code):
     elif code == 0:
         rows, cycles = parse(dest / 'rtl.log', checked(case)['measured_frames'], checked(case)['warmup_frames'])
         result.update(passed=memory and rows == capture['rows'], rows=rows, cycles=cycles,
-                      simulated_ms=[n / 100000 for n in cycles])
+                      simulated_ms=[n * 1000 / checked(case).get('clock_hz', 100000000) for n in cycles])
     save(dest / 'results.json', result)
     return result
 
@@ -324,6 +348,11 @@ def parallel(case, records, fn, jobs):
 
 def report(case):
     manifest = checked(case)
+    platform = manifest.get('platform_name', 'os25')
+    clock_hz = manifest.get('clock_hz', 100000000)
+    estimate_key = 'estimated_' + platform + '_fps'
+    button_route = ('no button input' if manifest.get('route', {}).get('input') == 'none'
+                    else 'seed-7 scripted six-button input')
     results = []
     for cart in manifest['carts']:
         folder = case / 'carts' / cart['id']
@@ -369,22 +398,22 @@ def report(case):
         timing = row.get('rtl', {})
         if timing.get('passed'):
             mean_cycles = sum(timing['cycles']) / len(timing['cycles'])
-            row['runtime_capacity_fps'] = 100000000 / mean_cycles
-            row['estimated_os25_fps'] = min(row['target_fps'], row['runtime_capacity_fps'])
-            row['mean_simulated_frame_ms'] = mean_cycles / 100000
+            row['runtime_capacity_fps'] = clock_hz / mean_cycles
+            row[estimate_key] = min(row['target_fps'], row['runtime_capacity_fps'])
+            row['mean_simulated_frame_ms'] = mean_cycles * 1000 / clock_hz
         results.append(row)
     save(case / 'results.json', dict(manifest=manifest, results=results))
     lines = ['# Pico8Pocket supplied-cart test results', '',
              f"Source revision: `{manifest['source_revision']}`. {len(results)} ZIP cart entries.", '',
-             f"The runtime smoke route runs {manifest['native_frames']} frames twice on the native host, with seed-7 scripted six-button input and fixed 48 kHz audio rendering. RV32 QEMU runs {manifest['warmup_frames']} warm-up frames, captures a checkpoint twice, and emits independent pixel, palette, PCM, input and FPS oracles for frames {manifest['warmup_frames']}–{manifest['warmup_frames']+manifest['measured_frames']-1}. RTL resumes that exact binary and process state.", '',
-             '**Platform limit:** RTL is os25 at a simulated 100 MHz. Pico8Pocket ships os20. These tests do not establish shipped-core performance, whole-game compatibility, Pocket display/audio scheduling, SD saves or system-menu behavior.', '',
-             f"| Cart | Target FPS | Estimated os25 FPS | Native ×2 ({manifest['native_frames']} frames) | QEMU ×2 ({manifest['warmup_frames']+manifest['measured_frames']} frames) | os25 RTL ({manifest['measured_frames']} frames) | Simulated frame ms |",
+             f"The runtime smoke route runs {manifest['native_frames']} frames twice on the native host, with {button_route} and fixed 48 kHz audio rendering. RV32 QEMU runs {manifest['warmup_frames']} warm-up frames, captures a checkpoint twice, and emits independent pixel, palette, PCM, input and FPS oracles for frames {manifest['warmup_frames']}–{manifest['warmup_frames']+manifest['measured_frames']-1}. RTL resumes that exact binary and process state.", '',
+             f"**Platform limit:** RTL is {platform} at a simulated {clock_hz / 1000000:g} MHz. {manifest['platform']}. These tests do not establish physical Pocket performance, whole-game compatibility, Pocket display/audio scheduling, SD saves or system-menu behavior.", '',
+             f"| Cart | Target FPS | Estimated {platform} FPS | Native ×2 ({manifest['native_frames']} frames) | QEMU ×2 ({manifest['warmup_frames']+manifest['measured_frames']} frames) | {platform} RTL ({manifest['measured_frames']} frames) | Simulated frame ms |",
              '|---|---:|---:|---|---|---|---|']
     completed = sum(r.get('native', {}).get('completed', False) for r in results)
     repeatable = sum(r.get('native', {}).get('passed', False) for r in results)
-    lines[6:6] = [f'Native execution completed both 600-frame runs for **{completed}/{len(results)}** carts; **{repeatable}/{len(results)}** produced identical repeats. NONREPEATABLE indicates completed execution with differing output, rather than a runtime error.', '']
-    lines[8:8] = ['Game state is warmed for 180 frames; RTL CPU caches start cold. Timed intervals include the runtime step and fixed PCM render, excluding output hashes, UART and video presentation. Between-frame hashing/logging can affect later caches.', '']
-    lines[10:10] = ['Estimated os25 FPS is `min(target FPS, 100,000,000 / mean runtime cycles)` over frames 180–182. It is a runtime-only estimate on os25, not measured Pocket FPS. Video presentation, OS scheduling and adaptive draw skipping are excluded. Some carts stay on titles/menus under this shared input route. Backrooms has no FPS estimate because it fails before the replay window.', '']
+    lines[6:6] = [f"Native execution completed both {manifest['native_frames']}-frame runs for **{completed}/{len(results)}** carts; **{repeatable}/{len(results)}** produced identical repeats. NONREPEATABLE indicates completed execution with differing output, rather than a runtime error.", '']
+    lines[8:8] = [f"Game state is warmed for {manifest['warmup_frames']} frames; RTL CPU caches start cold. Timed intervals include the runtime step and fixed PCM render, excluding output hashes, UART and video presentation. Between-frame hashing/logging can affect later caches.", '']
+    lines[10:10] = [f"Estimated {platform} FPS is `min(target FPS, {clock_hz:,} / mean runtime cycles)` over frames {manifest['warmup_frames']}–{manifest['warmup_frames']+manifest['measured_frames']-1}. It is a runtime-only simulated estimate, not measured Pocket FPS. Video presentation, OS scheduling and adaptive draw skipping are excluded. Some carts stay on titles/menus under this shared input route.", '']
     for row in results:
         labels = []
         for phase in ['native', 'qemu', 'rtl']:
@@ -393,7 +422,7 @@ def report(case):
                           'SKIP (RV32 failure)' if phase == 'rtl' and row.get('qemu') and not row['qemu']['passed'] else '—')
         timings = ', '.join(f'{n:.2f}' for n in row.get('rtl', {}).get('simulated_ms', [])) or '—'
         target = str(row['target_fps']) if row['target_fps'] else '—'
-        estimate = f"{row['estimated_os25_fps']:.1f}" if 'estimated_os25_fps' in row else '—'
+        estimate = f"{row[estimate_key]:.1f}" if estimate_key in row else '—'
         lines.append('| ' + row['name'].replace('|', '\\|') + ' | ' + target + ' | ' + estimate + ' | ' + ' | '.join(labels) + ' | ' + timings + ' |')
     lines += ['', '## Failures', '']
     for row in results:
@@ -418,13 +447,13 @@ def report(case):
     lines += ['', f'Evidence directory: `{case}`. Raw carts, captures and logs remain private and ignored.', '']
     (case / 'REPORT.md').write_text('\n'.join(lines))
     with (case / 'FPS.csv').open('w', newline='') as stream:
-        columns = ['id', 'cart', 'target_fps', 'estimated_os25_fps', 'runtime_capacity_fps',
+        columns = ['id', 'cart', 'target_fps', estimate_key, 'runtime_capacity_fps',
                    'mean_simulated_frame_ms', 'native_completed', 'native_repeatable', 'qemu_repeatable', 'rtl_passed']
         writer = csv.DictWriter(stream, fieldnames=columns)
         writer.writeheader()
         for row in results:
             writer.writerow(dict(id=row['id'], cart=row['name'], target_fps=row['target_fps'],
-                estimated_os25_fps=round(row['estimated_os25_fps'], 3) if 'estimated_os25_fps' in row else '',
+                **{estimate_key: round(row[estimate_key], 3) if estimate_key in row else ''},
                 runtime_capacity_fps=round(row['runtime_capacity_fps'], 3) if 'runtime_capacity_fps' in row else '',
                 mean_simulated_frame_ms=round(row['mean_simulated_frame_ms'], 3) if 'mean_simulated_frame_ms' in row else '',
                 native_completed=row.get('native', {}).get('completed', False),
@@ -443,6 +472,7 @@ def main():
     ap.add_argument('--source', type=Path)
     ap.add_argument('--archive', type=Path)
     ap.add_argument('--name')
+    ap.add_argument('--platform', choices=['os20', 'os25'], default='os25', help='create: separately pinned CPU platform')
     ap.add_argument('--setup', help='create: Lua expression evaluated once after cart load')
     ap.add_argument('--input', choices=['seed7', 'none'], default='seed7', help='create: button route')
     ap.add_argument('--hash-seed', type=lambda s: int(s, 0), help='create: final unsigned 32-bit Lua hash seed')
@@ -460,7 +490,7 @@ def main():
     if args.action == 'create':
         if not all([args.source, args.archive, args.name]):
             ap.error('create requires --source, --archive, --name')
-        create(args.source, args.archive, args.name, routes.validate(args.setup, args.input, args.hash_seed, args.warmup_frames, args.measure_frames, args.trace_frames, args.trace_gc))
+        create(args.source, args.archive, args.name, routes.validate(args.setup, args.input, args.hash_seed, args.warmup_frames, args.measure_frames, args.trace_frames, args.trace_gc), platform=args.platform)
         return
     if not args.case:
         ap.error('Specify --case')

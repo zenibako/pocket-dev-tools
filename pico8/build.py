@@ -21,6 +21,9 @@ def build():
               '-ffreestanding', '-nostdinc', '-isystem', '/work/musl/include', '-D_GNU_SOURCE',
               '-I/work/pico8', '-I/work/sdk/include', '-I' + str(p / 'include'),
               '-I' + str(z), '-I' + str(p / '.deps/fake-08/libs/miniz')] + routes.flags(ROOT / 'pico8')
+    platform = json.loads((ROOT / 'case.json').read_text())
+    if platform.get('platform_name') == 'os20':
+        common += ['-DPICO_CPU_HZ=90000000u']
     cpp = ['-x', 'c++', '-std=c++17', '-fwrapv', '-DLUA_USE_LONGJMP', '-fno-exceptions',
            '-fno-rtti', '-fno-threadsafe-statics', '-include', 'stdlib.h',
            '-include', str(p / 'include/p8p/vm_fasttext.h'), '-I' + str(p / 'src/compat/cxx')]
@@ -60,6 +63,7 @@ def build():
         ['riscv64-unknown-elf-gcc', '--version'], text=True).splitlines()[0], flags=common + cpp,
         command=command, symbols=symbols, elf_sha256=digest(d / 'program.elf'),
         bram_sha256=digest(d / 'bram.bin'), cpu_parameter_changes={},
+        platform_name=platform.get('platform_name','os25'), clock_hz=platform.get('clock_hz',100000000),
         vm_placement='BRAM', allocator='existing fullframe bounded segregated allocator'), indent=2) + '\n')
     print('BUILT RV32 Pico8 checkpoint runner', flush=True)
 

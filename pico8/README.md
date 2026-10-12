@@ -5,8 +5,39 @@ This experimental second workload follows the boundary in
 separate deterministic cart route, checkpoint and output oracles. The existing
 Butterscotch inputs and baseline remain unchanged. Pico8Pocket's
 `docs/architecture.md` identifies its shipped platform as **os20**; this
-adapter runs **os25**. Simulated timings cannot be presented as shipped-core
-or physical Pocket performance.
+adapter historically ran **os25**. New performance cases can select a separate
+**os20 at 90 MHz** platform with `--platform os20`. Existing os25 cases and the
+Butterscotch baseline remain unchanged. Simulated timings cannot be presented
+as physical Pocket performance.
+
+Build the os20 platform once before creating os20 cases:
+
+```sh
+python3 pico8/cpu_platform.py build --jobs 4
+python3 pico8/cpu_platform.py verify
+python3 pico8/run.py create --source /absolute/pico8pocket \
+  --archive /absolute/carts.zip --name os20-fixed --platform os20 \
+  --hash-seed 0x5eed1234 --measure-frames 12
+```
+
+The launcher privately copies the locked CPU sources and generates the frozen
+OS `8318f25` os20 configuration: dual issue, 32 KiB I-cache, 64 KiB D-cache,
+reduced-accuracy FMA and a 4-slot/32-operation store buffer. It resolves os20's
+production SDRAM/GPU macros, including the 660-cycle refresh interval, sets the
+peripheral clock register to 90 MHz, scales the 74 MHz bridge clock ratio, vsync
+and diagnostic scanout cadence, and records CPU/simulator/source hashes. Each
+os20 replay reads and validates the actual MMIO clock register before timing.
+Completed platform builds are preserved; `rtl` can resume an incomplete build.
+
+**Provenance limit:** Pico8Pocket pins Diablo `8cb3198`'s os20 bitstream (SHA-256
+`f8e21c5f75cbbd2f442e028118a855e5b4490eac6bdf21ae322fecf798590719`), which has
+no source-generation manifest. The new platform matches the documented os20
+configuration; exact equivalence to that shipped bitstream remains unproven.
+The existing chip model retains conservative cycle timing checks. The compiler,
+allocator, omitted OS/presentation work and cold caches remain harness limits.
+Single-lane os25 instruction/pipeline observers are not validated for dual-issue
+os20. The existing `create` default remains os25 for workflow compatibility;
+use `--platform os20` explicitly for Pico8 performance experiments.
 
 Create an independent private case from the cloned, dependency-prepared port
 and a supplied ZIP. Only `.p8` and `.p8.png` entries are copied; bundled desktop
@@ -44,8 +75,9 @@ the runtime step and fixed PCM render; they exclude output hashing, UART and
 video presentation. Hashing/logging between samples can affect later caches.
 
 `report` writes `REPORT.md`, `results.json` and `FPS.csv` for every supplied
-cart. The FPS table records the target rate and estimates runtime capacity as
-100 MHz divided by mean cycles over frames 180–182, capped at the target rate.
+cart. The FPS table records the selected platform and target rate and estimates
+runtime capacity as its recorded clock (90 MHz os20 or 100 MHz os25) divided by
+mean cycles over the recorded replay window, capped at the target rate.
 The CSV also retains uncapped capacity and mean simulated frame time. A cart
 that fails before replay has a target rate where available, but no estimate.
 These short samples can remain on title screens and exclude presentation,
@@ -118,7 +150,7 @@ snapshots. It requires an explicit seed. `trace` preserves two long QEMU logs,
 checks output and counter repeatability, and compares native output. QEMU
 counts describe RV32 allocation and GC scheduling; all scope times are zero.
 Native scope times are monotonic nanoseconds. RTL scope times are simulated
-100 MHz cycles. Hashes and checkpoint pointers compare within the same ELF;
+cycles at the recorded platform clock. Hashes and checkpoint pointers compare within the same ELF;
 only independent output rows and semantic counters compare across builds.
 
 `PICOGC` records logical new/realloc/free calls, requested and released bytes,

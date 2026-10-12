@@ -12,7 +12,7 @@ and setup, not the CPU configuration or the game runtime used in the baseline.
 | VM workload | `workloads.c`, `services.c`, `battle_replay.*`, `battle_fixtures.py`, `capture/` | Butterscotch BC16/BC17 and event transcripts |
 | Complete frames | `fullframe/` | Butterscotch game-loop checkpoint, rendering/audio platform, QEMU capture and RTL replay |
 | Hardware calibration | `calibration.py`, `calibration/` | One SDK ELF with normal hardware entry and separate bare RTL entry; asset-free numerical/renderer probes, QEMU oracles and passive pipeline counters |
-| Experimental Pico8 runtime | `pico8/` | Independent cart snapshot, deterministic RV32 checkpoint, indexed pixels/palette/PCM oracles and os25 replay; shipped os20 remains outside scope |
+| Experimental Pico8 runtime | `pico8/` | Independent cart snapshot, deterministic RV32 checkpoint, indexed pixels/palette/PCM oracles; historical os25 replay and separately pinned os20/90 MHz configuration |
 
 The repository name describes its hardware target. Its original validated
 baseline supports Butterscotch with two games; `pico8/` adds an experimental
@@ -23,7 +23,14 @@ CPU/memory infrastructure. A core using different CPU/cache/bus configuration
 also needs a separately pinned platform adapter and its own validation.
 
 Keep game-specific hooks with the workload until a second adapter demonstrates
-which interfaces should be shared. Preserve the current baseline when adding
+which interfaces should be shared. `pico8/cpu_platform.py` copies locked CPU
+sources to `build/platforms/os20`, resolves os20 production macros through the
+shared wrapper generator and builds an independent simulator. It does not replace
+the original CPU netlist or any os25 evidence. Pico8 cases record platform-specific
+clock, scanout cadence and CPU/simulator identity. Exact source equivalence to
+Pico8Pocket's shipped binary bitstream remains unproven.
+
+Preserve the current baseline when adding
 one; do not silently change its manifests or reference captures.
 
 The game-port repository can record this repository's commit in a small JSON
