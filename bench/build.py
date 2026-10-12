@@ -14,7 +14,7 @@ import capture
 
 def sources():
     src, port, vendor = capture.SRC, capture.PORT, capture.VENDOR
-    menu = [port / 'platform' / n for n in ['ut_menu.c', 'ut_font.c']
+    menu = [port / 'platform' / n for n in ['ut_menu.c', 'ut_font.c', 'ut_battle_ui.c']
             if (port / 'platform' / n).is_file()]
     return [port / 'main.c', *[port / 'platform' / n for n in
             ['of_platform.c', 'of_diag.c', 'of_log.c', 'of_perf.c', 'of_audio_system.c',
@@ -26,6 +26,32 @@ def sources():
             *[vendor / n for n in ['sha1/sha1.c', 'md5/md5.c', 'base64/base64.c',
                                  'miniz/miniz.c', 'miniz/miniz_tdef.c', 'miniz/miniz_tinfl.c']],
             src / 'physics/physics.c', src / 'physics/disabled/physics_disabled.c']
+
+
+def scene_main(main, scene):
+    if scene is None:
+        return main
+    required = {'room', 'setup_frame', 'jump_frame', 'globals', 'input', 'require_spades'}
+    if (not isinstance(scene, dict) or not required <= set(scene) or set(scene) - required - {'benchmark_diagnostics'} or
+            type(scene['room']) is not int or scene['room'] < 0 or
+            type(scene['setup_frame']) is not int or scene['setup_frame'] < 0 or
+            type(scene['jump_frame']) is not int or scene['jump_frame'] <= scene['setup_frame'] or
+            not isinstance(scene['globals'], str) or not isinstance(scene['input'], str) or
+            type(scene['require_spades']) is not bool or scene.get('benchmark_diagnostics', False) is not False):
+        raise ValueError('Invalid controlled scene setup')
+    # Keep the benchmark argument's seed/mode selection, but reproduce ordinary
+    # play rather than turning on the benchmark's per-draw clock diagnostics.
+    # Volatile saves remain mandatory for private, repeatable captures.
+    main = capture.once(main, 'utBenchStart();', 'utSaveFsSetVolatile(true);')
+    setup = ('    static const UtJump frame_scene_jumps[] = {\n'
+             f'        {{{scene["setup_frame"]}, -1, {json.dumps(scene["globals"])}}},\n'
+             f'        {{{scene["jump_frame"]}, {scene["room"]}, NULL}}\n'
+             '    };\n'
+             '    utPlatformSetUncapped(true);\n'
+             '    utPlatformSetJumps(frame_scene_jumps, 2);\n'
+             f'    utPlatformSetInputScript({json.dumps(scene["input"])});\n')
+    return capture.once(main, '    int ret = loop(args, UT_GAME_NAME);',
+                        setup + '    int ret = loop(args, UT_GAME_NAME);')
 
 
 def port_flags(game, directory):
@@ -67,6 +93,7 @@ def build(game, variant, compiler):
     (directory / 'vm.c').write_text('#include "frame.h"\n' + vm)
     main = capture.once((port / 'main.c').read_text(), 'int main(int argc, char **argv)',
                         'int game_main(int argc, char **argv)')
+    main = scene_main(main, config.get('scene'))
     (directory / 'main.c').write_text(main)
     native = capture.once((port / 'platform/ut_native.c').read_text(),
                           'void utNativeInstall(Runner *runner) {',
@@ -113,6 +140,9 @@ def build(game, variant, compiler):
                'FRAME_FB_UNCACHED=' + str(int(config['framebuffer'] == 'uncached')),
                'FRAME_CLOCK_COST=' + str(config['clock_cost']),
                'FRAME_AUDIO_REALTIME=' + str(int(config['audio'] == 'realtime'))]
+    if config.get('scene'):
+        defines += ['FRAME_SCENE_ROOM=' + str(config['scene']['room']),
+                    'FRAME_SCENE_SPADES=' + str(int(config['scene']['require_spades']))]
     wraps = ['fopen', 'printf', 'fprintf', 'vfprintf', 'vprintf', 'puts', 'fputs', 'putchar', 'fwrite']
     command = [compiler, *flags, *app_flags, *['-D' + x for x in defines],
                *['-I' + str(p) for p in includes], *map(str, paths),

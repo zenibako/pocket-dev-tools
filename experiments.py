@@ -17,7 +17,16 @@ import tempfile
 ROOT = Path(__file__).resolve().parent
 PRIVATE = ROOT / 'experiments'
 WINDOWS = {'undertale': {'flowey': 2400},
-           'deltarune': {'field': 2800, 'bmenu': 3120, 'dodge': 3323}}
+           'deltarune': {'field': 2800, 'bmenu': 3120, 'dodge': 3323,
+                        'spades': 490, 'castle': 150}}
+# Controlled recreations, not imported player progress. Setup occurs well before
+# the checkpoint so the sampled frames cover warmed, sustained scene work.
+SCENES = {name: dict(room=room, setup_frame=29, jump_frame=30,
+                    globals='darkzone=1,char[1]=' + ('0' if name == 'spades' else '2') +
+                            ',char[2]=0,plot=60,interact=0',
+                    input=','.join(f'{frame}:Z' for frame in range(40, 490, 15)) if name == 'spades' else '',
+                    require_spades=name == 'spades', benchmark_diagnostics=False)
+          for name, room in [('spades', 43), ('castle', 46)]}
 
 
 def compiler_switches(value):
@@ -183,6 +192,8 @@ def create_case(args, kind):
                   launcher_sha256=sha(Path(__file__)))
     if extra_cflags:
         config['extra_cflags'] = extra_cflags
+    if args.window in SCENES:
+        config['scene'] = SCENES[args.window]
     key = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()[:16]
     root = PRIVATE / 'cases' / (args.snapshot + '-' + args.game + '-' + args.window + '-' + args.mode + '-' + kind + '-' + key)
     if root.exists():
@@ -278,6 +289,8 @@ def compare(args):
     for field in ['game', 'window', 'first_frame', 'mode', 'framebuffer', 'clock_cost', 'audio']:
         if baseline[field] != candidate[field]:
             raise ValueError('Comparison configuration differs: ' + field)
+    if baseline.get('scene') != candidate.get('scene'):
+        raise ValueError('Comparison scene setup differs')
     if baseline.get('native', 'enabled' if baseline.get('profile') == 'port' else 'disabled') != candidate.get('native', 'enabled' if candidate.get('profile') == 'port' else 'disabled'):
         raise ValueError('Comparison native script setting differs')
     if baseline['audio'] != 'fixed':
@@ -331,6 +344,17 @@ def check_audio_costs(result):
         expected = row['cycles'] * 48000 / 100000000
         if abs(costs['audio_pairs_consumed'] - expected) > 64:
             raise ValueError('Realtime audio consumption does not cover the complete frame')
+
+
+def timing_partner(record, records):
+    return next((r for r in records if r['build_kind']=='timing' and r['revision']==record['revision']
+                 and r['native_scripts']==record['native_scripts']
+                 and r['config'].get('scene') == record['config'].get('scene')
+                 and r['config'].get('extra_cflags', []) == record['config'].get('extra_cflags', [])
+                 and all(r['config'][f]==record['config'][f] for f in
+                         ['snapshot_sha256','mode','window','game','variant','profile','framebuffer','clock_cost','audio',
+                          'alignment','compiler'])
+                 and r['compiler_version']==record['compiler_version']), None)
 
 
 def report_cases(args):
@@ -387,13 +411,7 @@ def report_cases(args):
     for record in records:
         if record['build_kind'] != 'trace':
             continue
-        partner = next((r for r in records if r['build_kind']=='timing' and r['revision']==record['revision']
-                        and r['native_scripts']==record['native_scripts']
-                        and r['config'].get('extra_cflags', []) == record['config'].get('extra_cflags', [])
-                        and all(r['config'][f]==record['config'][f] for f in
-                                ['snapshot_sha256','mode','window','game','variant','profile','framebuffer','clock_cost','audio',
-                                 'alignment','compiler'])
-                        and r['compiler_version']==record['compiler_version']), None)
+        partner = timing_partner(record, records)
         if partner:
             timing_pairs.append(dict(revision=record['revision'], mode=record['config']['mode'],
                                      window=record['config']['window'], traced_ms=record['mean_simulated_ms'],
@@ -423,7 +441,7 @@ def main():
     run = commands.add_parser('run')
     run.add_argument('--snapshot', required=True)
     run.add_argument('--game', choices=WINDOWS, default='deltarune')
-    run.add_argument('--window', choices=['flowey', 'field', 'bmenu', 'dodge'], default='dodge')
+    run.add_argument('--window', choices=sorted({name for windows in WINDOWS.values() for name in windows}), default='dodge')
     run.add_argument('--mode', choices=['accuracy', 'speed'], default='accuracy')
     run.add_argument('--kind', choices=['trace', 'timing', 'both'], default='both')
     run.add_argument('--profile', choices=['port', 'legacy'], default='port')

@@ -5,6 +5,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef FRAME_SCENE_ROOM
+#include "sw_renderer_private.h"
+#include "sw_call_notes.h"
+#include "openfpga/platform/ut_bench.h"
+#ifndef FRAME_SCENE_EXPECT_ROOM
+#define FRAME_SCENE_EXPECT_ROOM FRAME_SCENE_ROOM
+#endif
+#endif
 #ifndef FRAME_TARGET
 #define FRAME_TARGET 2399
 #endif
@@ -65,10 +73,41 @@ void frame_begin(Runner*r){
 }
 extern unsigned frame_pixels(void);
 extern void frame_ppm(unsigned);
+#ifdef FRAME_SCENE_ROOM
+static void frame_scene_check(Runner *r) {
+ unsigned spades=0,visible_spades=0,controllers=0;
+ GMLCamera *camera=Runner_getCameraForView(r,0);
+ for(ptrdiff_t i=0;i<arrlen(r->instances);i++) {
+  Instance *inst=r->instances[i];
+  if(!inst->active || inst->destroyed || inst->objectIndex<0)continue;
+  const char *name=r->dataWin->objt.objects[inst->objectIndex].name;
+  if(name && (!strcmp(name,"obj_overworld_spade") || !strcmp(name,"obj_overworld_spade_homing"))) {
+   spades++;
+   if(inst->visible && camera && inst->x>=camera->viewX && inst->x<camera->viewX+camera->viewWidth &&
+      inst->y>=camera->viewY && inst->y<camera->viewY+camera->viewHeight)visible_spades++;
+  }
+  if(name && !strcmp(name,"obj_battlecontroller"))controllers++;
+ }
+ SWRenderer *swr=(SWRenderer*)r->renderer;
+ if(r->currentRoomIndex!=FRAME_SCENE_EXPECT_ROOM)frame_fail("scene room mismatch");
+ if(FRAME_SCENE_SPADES && !spades)frame_fail("scene has no active spades");
+ if(FRAME_SCENE_SPADES && !visible_spades)frame_fail("scene has no visible spades");
+ if(controllers || swr->contrastEnabled)frame_fail("overworld scene unexpectedly enables battle sampling");
+ if(swrCallNotes)frame_fail("scene unexpectedly enables benchmark draw diagnostics");
+ if(swrDrawTimed || r->vmContext->profiler)frame_fail("scene unexpectedly enables draw or script profiling");
+ if(utPlatformSpeedMode()!=(FRAME_SPEED!=0))frame_fail("scene mode mismatch");
+ char line[160];snprintf(line,sizeof(line),"FRAMESCENE %u room=%d spades=%u visible=%u controllers=%u contrast=%u speed=%u\n",
+  r->frameCount,r->currentRoomIndex,spades,visible_spades,controllers,swr->contrastEnabled,utPlatformSpeedMode());frame_output(line);
+}
+#endif
 void frame_end(Runner*r){
  unsigned elapsed=cycles()-begin_cycles;
  frame_platform_end();
  if(r->frameCount<=FRAME_TARGET)return;
+#ifdef FRAME_SCENE_ROOM
+ // Validation and reporting occur after elapsed cycles have been sampled.
+ frame_scene_check(r);
+#endif
  unsigned row[8]={r->frameCount,state_hash(r),frame_pixels(),frame_pcm_hash,frame_pcm_pairs,frame_ops,frame_events,frame_trace};
  if(measured>=FRAME_COUNT)frame_fail("frame count overflow");
  if(!frame_host)for(unsigned i=0;i<8;i++)if(!(FRAME_TIMING && i==3) && !(FRAME_AUDIO_REALTIME && (i==3 || i==4)) && row[i]!=frame_expected[measured][i]){char s[120];snprintf(s,sizeof(s),"frame %u oracle field %u expected=%08x actual=%08x",r->frameCount,i,frame_expected[measured][i],row[i]);frame_fail(s);}

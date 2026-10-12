@@ -110,9 +110,12 @@ applied only inside the new private snapshot.
 | Deltarune Chapter 1 | `field` | 2800–2802 | Party walking in the field |
 | Deltarune Chapter 1 | `bmenu` | 3120–3122 | Benchmark menu/attack section, attack meters |
 | Deltarune Chapter 1 | `dodge` | 3323–3325 | Enemy turn / dodging |
+| Deltarune Chapter 1 | `spades` | 490–492 | Recreated Dark World spade chase, Kris alone |
+| Deltarune Chapter 1 | `castle` | 150–152 | Recreated Castle Front, Kris and Susie |
 
-These are three-frame samples of `platform/ut_bench.c`'s route with seed 7 and
-fresh volatile saves. Field and menu/attack reference images were inspected.
+The original four windows are three-frame samples of `platform/ut_bench.c`'s
+route with seed 7 and fresh volatile saves. Field and menu/attack reference images
+were inspected. The later windows use the controlled setup described below.
 They do not cover every frame in those sections or every battle.
 
 - `--mode accuracy` uses `--bench`; `--mode speed` uses `--bench-smooth`.
@@ -183,6 +186,43 @@ fixed consumption because it has no matching RTL-cycle clock. Its PCM hash/count
 are therefore **explicitly excluded** from realtime RTL oracles. Cross-build PCM
 comparison refuses realtime cases; use fixed audio for regression checks.
 Underrun counts are model observations, not physical Pocket measurements.
+
+## Controlled later Deltarune scenes
+
+The [progress-scene results](2026-10-12-progress-slowdown-results.md) compare
+base and battle sharpening with diagnostics off. The recreated spade chase is
+expensive in both; the candidate adds 1.62% in that window and 0.81% at Castle
+Front. All eight positive/negative cases and output comparisons pass.
+
+Two additional Speed windows recreate later Chapter 1 scenes independently of
+a player save: `spades` samples frames 490–492 in room 43 (`room_dark_chase2`),
+and `castle` samples frames 150–152 in room 46 (`room_castle_front`). They use
+the normal game objects and events, with globals set at frame 29 and a room jump
+at frame 30. Spades uses Kris alone and confirmation input every 15 frames from
+40 through 475 to pass the scene's opening dialogue. Castle uses Kris and Susie
+with no input. Both set `darkzone=1`, `plot=60`, and `interact=0`; these are
+controlled recreations, not exact imported story progress.
+
+The setup retains benchmark seed/mode selection and volatile saves, replaces
+benchmark startup to leave draw diagnostics off, and explicitly disables frame
+pacing for the fixed capture clock. `FRAMESCENE` checks the room, Speed setting,
+absence of Script times and draw profiling, and absence of battle-controller
+sampling. The spades window also requires active, visible spades. These checks
+run after frame-cycle sampling. The optional `ut_battle_ui.c` module is included
+when the snapshot contains it. Scene setup participates in case identity,
+cross-case comparisons, and traced/timing report pairing.
+
+Use the normal snapshot/run workflow with `--game deltarune --window spades`
+or `--window castle`, `--mode speed --kind both --profile port`. Require repeat
+captures, positive RTL replay, `replay --negative` for every case, cross-revision
+raw output comparisons, and traced/timing comparisons. A wrong-room expectation
+can additionally test scene validation using
+`--extra-cflags=-DFRAME_SCENE_EXPECT_ROOM=46` for a spades case; capture must fail
+with `scene room mismatch`. Preserve this separate failed case.
+
+Run adapter regression tests with `python3 -m unittest bench.test_progress`.
+The frozen texture packs, allocator, storage and audio service models still
+differ from the Pocket; these windows establish bounded simulated CPU cost.
 
 ## Verified observations (2026-10-10)
 
