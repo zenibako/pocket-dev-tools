@@ -33,12 +33,84 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 
 | Workload | Command / evidence | What it exercises |
 | --- | --- | --- |
+| Pico8Pocket fixed-seed cart/scene A/B on os20 | `python3 pico8/cpu_platform.py verify`; `python3 pico8/run.py create --platform os20`; `pico8/README.md` | Native/QEMU checkpoint and indexed pixel/palette/PCM oracles, quiet/scanout RTL runtime replay at 90 MHz |
 | Synthetic and captured VM events | `python3 run.py all --jobs 4`; `build/results.json` | BC16/BC17 interpreter and value/variable handling; six captured leaf events use checked builtin transcripts |
 | Complete battle frames | `python3 fullframe/run.py run`; `build/fullframe/results.json` after `python3 fullframe/report.py` | Consecutive real game-loop iterations, all reached scripts/builtins, collision, software rendering and audio mixing |
 | Revision experiments | `python3 experiments.py`; bench/README.md (`bench/README.md` under the harness root) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
 | Passive cache/pipeline profile | `python3 cache_profile.py --case EXACT_CASE`; cacheprobe/README.md (`cacheprobe/README.md` under the harness root) | I/D refills, architectural retirement/CPI, dependencies, FPU/divider/store-buffer waits and branch recovery; unchanged CPU/firmware in independent copies |
 | Sprite-culling microprobe | `python3 sprite_probe.py --snapshot NAME`; spriteprobe/README.md (`spriteprobe/README.md` under the harness root) | Pinned staged renderer probe, renderer/GML profiling disabled, 24 repeated call batches with strict oracles and passive pipeline counters |
 | Identical-ELF hardware calibration | `python3 calibration.py`; calibration/README.md (`calibration/README.md` under the harness root) | One normal SDK ELF with separate bare RTL entry, asset-free arithmetic/memory/renderer probes, 72 intervals, QEMU/RTL oracles and prepared hardware payload |
+
+## Pico8Pocket os20 performance
+
+Use the separate `pico8/` adapter for Pico8Pocket, introduced in harness commit
+`7e747e7`. Read `pico8/README.md`; this workflow is independent of Butterscotch's
+`experiments.py` windows and calibration. Use the supplied/session harness path,
+`OS25_HARNESS_ROOT`, or the known sibling checkout before asking for its location.
+
+If `build/platforms/os20` is absent, build once with
+`python3 pico8/cpu_platform.py build --jobs 4`. If it exists without
+`platform.json`, preserve failure evidence and inspect the logs; the documented
+`rtl` action resumes wrapper compilation after successful CPU generation. An
+existing completed platform is verified, never rebuilt in place.
+
+```sh
+python3 run.py verify
+python3 pico8/cpu_platform.py verify
+python3 pico8/run.py create --source SOURCE --archive CARTS_ZIP \
+  --name NEW_CASE --platform os20 --hash-seed 0x5eed1234 --measure-frames 12
+python3 pico8/run.py build --case EXACT_CASE
+python3 pico8/run.py native --case EXACT_CASE --cart CART_ID
+python3 pico8/run.py capture --case EXACT_CASE --cart CART_ID
+python3 pico8/run.py replay --case EXACT_CASE --cart CART_ID
+python3 pico8/run.py replay --case EXACT_CASE --cart CART_ID --traffic scanout
+python3 pico8/run.py replay --case EXACT_CASE --cart CART_ID --negative
+python3 pico8/run.py report --case EXACT_CASE
+```
+
+Create baseline/candidate cases from separate dependency-prepared source copies
+under new names; keep source revision/status and file inventories. Always pass
+`--platform os20`: the CLI and Python API still default to os25. Require recorded
+`platform_name=os20`, `clock_hz=90000000`, CPU/simulator identity and matching
+route/configuration. The final hash seed is checked in native/QEMU through
+`PICOSEED 1592594996`; overriding only `luai_makeseed()` leaves address mixing.
+RTL reads the actual MMIO clock register and emits `PICOCPU 90000000`.
+
+Use `--setup`, `--input`, `--warmup-frames`, `--measure-frames` and
+`--trace-frames` to reach the selected scene. Distinguish a reconstructed scene
+from an imported device save and inspect gameplay coverage. Compare A/B on the
+same seed, setup/input, window, compiler/flags/alignment, BRAM placement and
+fixed audio model. Default native traces run 600 frames twice. QEMU checkpoint
+and output must repeat. Inspect `capture.json` for both `passed=true` and
+`native_output_equal=true`; QEMU repeatability alone does not gate native equality.
+Require same-ELF quiet/scanout RTL
+output/memory oracles. A deliberately corrupted pixel oracle must be rejected.
+Independent raw pixel, display-palette and PCM exports plus pair counts are
+needed for byte-identity claims; standard frame hashes alone do not establish it.
+The standard CLI has no raw-channel exporter or cross-case compare action;
+use a separately reviewed collector or limit the conclusion to hash agreement.
+It also has no save-import option: setup/input recreate a scene; an actual
+device-state import requires separate, validated import evidence. Resolve cart
+IDs from each case inventory. Runtime changes use separate source snapshots;
+authorized cart Lua changes use distinct cart archives with recorded hashes.
+
+`report` calculates simulated runtime capacity as `90000000 / mean_cycles`,
+and caps the FPS estimate at the cart's target. Keep historical os25 evidence
+with its original 100 MHz clock; converting by frequency alone cannot model
+dual issue, smaller data cache, divider/FPU or refresh changes. Existing os25
+single-lane instruction/pipeline observers are not validated for os20.
+
+The os20 platform uses frozen OS `8318f25`, dual issue at 90 MHz, 32 KiB I-cache,
+64 KiB D-cache, reduced-accuracy FMA, 4-slot/32-op store buffer and 660-cycle
+SDRAM refresh. This matches the documented Pico8Pocket profile, but Diablo's
+shipped bitstream lacks a generation manifest. Exact bitstream source equivalence
+and hardware timing parity remain unproven. Check device compiler/libc/flags,
+alignment and BRAM layout separately; the harness uses GCC13 and a bounded
+allocator. Runtime timing excludes presentation, adaptive skipping and OS/SD/
+live audio scheduling, uses fixed PCM and starts with cold RTL caches. Do not
+label it physical Pocket FPS or transfer Butterscotch's os25 calibration to it.
+
+## Butterscotch calibration and sprite probes
 
 Calibration preparation is isolated and never implies installation. Require
 both repeated QEMU references, negative QEMU/RTL oracles, quiet observer on/off
@@ -214,7 +286,7 @@ Recapturing a candidate reference alone does not prove unchanged behavior.
 
 ## Interpret timing and hardware constraints
 
-Call these results **simulated**. The copied production os25 CPU has a 100 MHz
+For the Butterscotch workflows below, call results **simulated**. The copied production os25 CPU has a 100 MHz
 clock, 32 KiB I-cache, 128 KiB D-cache and single-precision FPU, with the production
 fabric, Pocket SDRAM controller/arbiter and registered BRAM model. Timing uses
 MMIO `0x40000004`; cycle CSRs trap in this configuration. That MMIO use is verified

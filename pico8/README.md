@@ -1,7 +1,7 @@
 # Pico8Pocket runtime adapter
 
 This experimental second workload follows the boundary in
-[ARCHITECTURE.md](../ARCHITECTURE.md): shared os25 CPU/cache/memory RTL,
+[ARCHITECTURE.md](../ARCHITECTURE.md): shared CPU/cache/memory infrastructure,
 separate deterministic cart route, checkpoint and output oracles. The existing
 Butterscotch inputs and baseline remain unchanged. Pico8Pocket's
 `docs/architecture.md` identifies its shipped platform as **os20**; this
@@ -46,7 +46,8 @@ filesystem destinations. The sole Docker mount is the case itself.
 
 ```sh
 python3 pico8/run.py create --source /absolute/pico8pocket \
-  --archive /absolute/carts.zip --name supplied-20261010
+  --archive /absolute/carts.zip --name supplied-20261010 \
+  --platform os20 --hash-seed 0x5eed1234
 python3 pico8/run.py build --case EXACT_CASE
 python3 pico8/run.py native --case EXACT_CASE --jobs 4
 python3 pico8/run.py capture --case EXACT_CASE --jobs 4
@@ -66,6 +67,11 @@ QEMU warms 180 frames, saves the complete allocator/VM/process state, then
 executes three frames twice. Pixel, display-palette, PCM, input and target-FPS
 oracles and complete checkpoints must repeat. RTL resumes that exact ELF and
 compares all three frames, retaining the existing memory-delivery checks.
+`capture.json` records `native_output_equal` separately from `passed`; require
+both before interpreting timing. A repeatable QEMU capture can pass even if
+native output disagrees. The standard runner exports channel hashes, checkpoint
+and stack, not raw pixel/palette/PCM files or a cross-case comparison. Use a
+separately validated collector for raw byte comparisons, or report hash agreement.
 `time()` joins the existing virtual `clock_gettime`/`gettimeofday` model in
 RV32 builds, making Lua's initial string hash seed repeatable at fixed addresses.
 The VM dispatch and hot helpers use SDK BRAM sections; the bounded allocator
@@ -137,7 +143,7 @@ Native evidence import now also checks benchmark headers and route flags.
 ```sh
 python3 pico8/run.py create --source /absolute/pico8pocket \
   --archive /absolute/carts.zip --name fixed-gc \
-  --hash-seed 0x5eed1234 --measure-frames 12 --trace-gc
+  --platform os20 --hash-seed 0x5eed1234 --measure-frames 12 --trace-gc
 python3 pico8/run.py build --case EXACT_CASE
 python3 pico8/run.py native --case EXACT_CASE --cart 023
 python3 pico8/run.py trace --case EXACT_CASE --cart 023

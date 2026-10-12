@@ -1,15 +1,18 @@
 ---
 name: os25-harness
-description: Test Butterscotch openFPGA changes for Undertale and Deltarune Chapter 1 in the isolated os25 RTL harness. Use for baseline/candidate frame replay, cache and pipeline cycle analysis, sprite probes, or matching Pocket calibration saves before device testing.
+description: Test Pico8Pocket on the isolated os20/90 MHz RTL adapter, or Butterscotch Undertale and Deltarune Chapter 1 on os25. Use for fixed-seed cart performance comparisons, baseline/candidate output replay, supported cache/pipeline analysis, sprite probes or hardware calibration evidence.
 ---
 
-# Butterscotch openFPGA testing with os25 RTL
+# openFPGA replay: Pico8Pocket os20 and Butterscotch os25
 
 Use the standalone `openfpga-os25-harness` repository for functional RV32 replay
 and simulated CPU/cache/memory measurements. Desktop captures check broader
 scenes; the harness measures selected target workloads; a Pocket run checks
-actual OS, SD, display/audio and board behavior. Only os25 with the current
-Butterscotch adapters is validated. Do not generalize to other cores or chapters.
+actual OS, SD, display/audio and board behavior. Select **os20 at 90 MHz for
+Pico8Pocket performance** and os25 at 100 MHz for Butterscotch. Pico8Pocket's
+separate adapter matches its documented CPU configuration; exact equivalence to
+the shipped bitstream and complete hardware timing parity remain unproven.
+Do not generalize the bounded cart/scene or game/chapter evidence.
 
 ## Locate and verify
 
@@ -34,7 +37,8 @@ are intentional. A sibling port edit does not alter the frozen `f1d8542` runner.
 
 | Need | Launcher | Read under the harness root |
 | --- | --- | --- |
-| VM leaf events / synthetic interpreter checks | `run.py` | `README.md` |
+| Pico8Pocket runtime, fixed-seed cart/scene A/B | `pico8/cpu_platform.py`, `pico8/run.py` with explicit `--platform os20` | `pico8/README.md` |
+| Butterscotch VM leaf events / synthetic interpreter checks | `run.py` | `README.md` |
 | Original complete-frame matrix | `fullframe/run.py`, `fullframe/report.py` | `fullframe/README.md` |
 | A current port revision or optimization | `experiments.py snapshot/run/compare/report` | `bench/README.md` |
 | Cache refills, retirement/CPI, FPU or dependency waits | `cache_profile.py` on an exact successful case | `cacheprobe/README.md` |
@@ -45,7 +49,7 @@ Use [references/workflows.md](references/workflows.md) for detailed commands,
 coverage, controls and timing limitations for the selected workflow. CLI `--help`
 and the maintained README take precedence over remembered command syntax.
 
-For a port change, snapshot explicit baseline and candidate Git revisions under
+For a Butterscotch port change, snapshot explicit baseline and candidate Git revisions under
 new names; never build a candidate by changing `inputs/`. Export reads Git objects,
 so uncommitted work needs an explicitly recorded supported source patch or a
 committed revision. Preserve the original baseline and failed cases. Compare
@@ -53,13 +57,48 @@ matching game/window, mode, compiler/alignment, native setting, placement,
 framebuffer, audio, clock-cost and build kind. Use both games for shared VM or
 renderer changes when the affected paths are covered.
 
-Supported windows are Undertale `flowey` 2400–2402 and Deltarune Chapter 1
+Supported Butterscotch windows are Undertale `flowey` 2400–2402 and Deltarune Chapter 1
 `field` 2800–2802, `bmenu` 3120–3122, `dodge` 3323–3325. These samples are not
 whole-game coverage. `experiments.py run` defaults to **Deltarune/dodge only**;
 `--kind both` means traced and timing ELFs, not both games. Specify
 `--game undertale --window flowey` and `--game deltarune --window WINDOW`
 individually for each baseline/candidate. Leaf-event cycles cannot substitute
 for full-frame cycles.
+
+## Pico8Pocket platform and seed selection
+
+Read `pico8/README.md` and [the Pico8 workflow](references/workflows.md#pico8pocket-os20-performance).
+Verify the existing platform with `python3 pico8/cpu_platform.py verify`; build
+once if `build/platforms/os20` is absent. Preserve incomplete builds and inspect
+logs before the documented wrapper-only `rtl` resume. Never overwrite completed
+platform evidence or frozen inputs.
+
+Create fresh baseline/candidate cases with explicit
+`--platform os20 --hash-seed 0x5eed1234 --measure-frames 12`. Both CLI and Python
+API defaults remain os25, so omitting the platform repeats the old mismatch.
+Require `case.json` to record `platform_name=os20`, `clock_hz=90000000` and CPU/
+simulator provenance; native/QEMU must confirm `PICOSEED 1592594996`, and RTL
+must confirm `PICOCPU 90000000` from MMIO. `luai_makeseed()` alone does not fix
+the final address-mixed Lua seed. Production seeding remains unchanged.
+
+Use matching setup/input, frame window, audio model, compiler/alignment and BRAM
+placement. Record recreated scenes separately from actual save imports. Require
+repeated native/QEMU output, quiet/scanout RTL output and memory oracles, and a
+corrupted-pixel negative control. Compare raw pixels, palettes, PCM and pair
+counts independently before claiming byte identity. Pointer-bearing state hashes
+only compare the same ELF/checkpoint.
+Require `capture.json`'s `native_output_equal=true` as well as `passed=true`.
+Standard runner commands export channel hashes, not raw channels or a cross-case
+comparison. Use a separately reviewed collector for byte comparisons, or report
+hash agreement with byte identity unverified.
+
+os20 timing uses the recorded 90 MHz clock. Preserve historical os25 cases at
+their original 100 MHz; clock rescaling cannot reproduce the different CPU and
+cache configuration. Existing single-lane os25 cache/pipeline observers are not
+validated for dual-issue os20. The shipped bitstream source, device compiler/libc/
+layout, production allocator, presentation, adaptive skipping and OS/SD/live
+audio scheduling still require separate evidence. Butterscotch's os25 calibration
+does not calibrate Pico8Pocket os20 or establish physical Pocket FPS.
 
 ## Accept evidence before interpreting performance
 
@@ -81,7 +120,7 @@ for full-frame cycles.
 
 ## Calibration saves and timing claims
 
-Prepare the hardware bundle only after reference, negative, observer on/off and
+Prepare the Butterscotch calibration hardware bundle only after reference, negative, observer on/off and
 scanout controls pass. Keep the exact ELF for the device run. Calibration saves
 use the game's NUL-terminated save-slot method with a separate slot-11 filename,
 `calibration_log.sav`. The user waits for `CALSAVE saved` and `CALIBRATION PASS`,
@@ -95,13 +134,15 @@ RTL. The outside-view call agreed within 0.13%. This controlled generated-sprite
 run does not explain the older ~19.9 microsecond v0.7 game probe or establish
 full-frame parity. Do not apply a universal calibration multiplier.
 
-Call RTL timings **simulated**, at the pinned 100 MHz os25 clock. Refill latency
-is not CPU stall, overlapping masks cannot be summed, and a disjoint presentation
-priority is not recoverable speedup. Architectural retirement/CPI uses observer
-v3 CommitService; do not substitute the older commit-decision count.
+Call RTL timings **simulated**, using each case's recorded clock: 90 MHz for
+Pico8Pocket os20, 100 MHz for Butterscotch os25. Refill latency is not CPU stall,
+overlapping masks cannot be summed, and a disjoint presentation priority is not
+recoverable speedup. Supported os25 architectural retirement/CPI uses observer
+v3 CommitService; do not substitute the older commit-decision count or apply
+single-lane counters to dual-issue os20.
 
 Account for the chosen service model: cached versus uncached framebuffer,
-fixed 800 audio pairs versus modeled realtime consumption, substituted allocator
+fixed audio-pair counts versus modeled realtime consumption, substituted allocator
 and OS services, cold caches, instrumentation and diagnostic scanout. Actual
 SD latency, kernel interrupts, audio/display scheduling, GPU execution, synthesis
 fit and board behavior need separate tests. Compiler/layout parity with a device
