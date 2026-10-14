@@ -12,19 +12,23 @@ sys.path.insert(0, str(ROOT))
 import capture
 
 
-def sources():
+def sources(game="deltarune"):
     src, port, vendor = capture.SRC, capture.PORT, capture.VENDOR
-    menu = [port / 'platform' / n for n in ['ut_menu.c', 'ut_font.c', 'ut_battle_ui.c']
+    renamed = (port / 'platform/of_bench.h').is_file()
+    prefix = 'of' if renamed else 'ut'
+    menu = [port / 'platform' / n for n in [prefix + '_menu.c', prefix + '_font.c', prefix + '_battle_ui.c']
             if (port / 'platform' / n).is_file()]
     return [port / 'main.c', *[port / 'platform' / n for n in
             ['of_platform.c', 'of_diag.c', 'of_log.c', 'of_perf.c', 'of_audio_system.c',
-             'ut_bench.c', 'ut_strings.c', 'ut_save_fs.c', 'ut_native.c']], *menu,
+             prefix + '_bench.c', prefix + '_strings.c', prefix + '_save_fs.c', prefix + '_native.c']], *menu,
+            *([port / 'platform' / n for n in ['game_' + game + '.c', 'of_state_requests.c', 'of_snapshot_envelope.c']] if renamed else []),
             *sorted(src.glob('*.c')), *sorted((src / 'sw').glob('*.c')),
             *sorted((src / 'image').glob('*.c')), *sorted((src / 'debug_font').glob('*.c')),
             src / 'video/null_video.c', src / 'embedded/stb_impl.c',
             *sorted((vendor / 'bzip2').glob('*.c')),
             *[vendor / n for n in ['sha1/sha1.c', 'md5/md5.c', 'base64/base64.c',
                                  'miniz/miniz.c', 'miniz/miniz_tdef.c', 'miniz/miniz_tinfl.c']],
+            *([vendor / 'zstd/zstd.c'] if (vendor / 'zstd/zstd.c').is_file() else []),
             src / 'physics/physics.c', src / 'physics/disabled/physics_disabled.c']
 
 
@@ -42,16 +46,19 @@ def scene_main(main, scene):
     # Keep the benchmark argument's seed/mode selection, but reproduce ordinary
     # play rather than turning on the benchmark's per-draw clock diagnostics.
     # Volatile saves remain mandatory for private, repeatable captures.
-    main = capture.once(main, 'utBenchStart();', 'utSaveFsSetVolatile(true);')
-    setup = ('    static const UtJump frame_scene_jumps[] = {\n'
+    renamed = 'ofBenchStart();' in main
+    prefix, typename, macro = ('of', 'Of', 'OF') if renamed else ('ut', 'Ut', 'UT')
+    main = capture.once(main, prefix + 'BenchStart();', prefix + 'SaveFsSetVolatile(true);')
+    setup = ('    static const ' + typename + 'Jump frame_scene_jumps[] = {\n'
              f'        {{{scene["setup_frame"]}, -1, {json.dumps(scene["globals"])}}},\n'
              f'        {{{scene["jump_frame"]}, {scene["room"]}, NULL}}\n'
              '    };\n'
              '    utPlatformSetUncapped(true);\n'
              '    utPlatformSetJumps(frame_scene_jumps, 2);\n'
              f'    utPlatformSetInputScript({json.dumps(scene["input"])});\n')
-    return capture.once(main, '    int ret = loop(args, UT_GAME_NAME);',
-                        setup + '    int ret = loop(args, UT_GAME_NAME);')
+    setup = setup.replace('utPlatform', prefix + 'Platform')
+    anchor = '    int ret = loop(args, ' + macro + '_GAME_NAME);'
+    return capture.once(main, anchor, setup + anchor)
 
 
 def port_flags(game, directory):
@@ -64,8 +71,12 @@ def port_flags(game, directory):
     text += "\n.PHONY: experiment-flags\nexperiment-flags:\n\t@printf '%s\\n' $(CFLAGS)\n"
     path = directory / 'flags.mk'
     path.write_text(text)
+    options = []
+    if (capture.PORT / 'platform/of_bench.h').is_file():
+        options = ['SAVESTATES=0', 'TARGET=pocket',
+                   'STATE_GAME_ID=' + capture.sha(capture.PORT / ('games/' + game + '/data.win'))[:16]]
     result = subprocess.run(['make', '-s', '--no-print-directory', '-f', str(path),
-                             'GAME=' + game, 'experiment-flags'], cwd=capture.PORT,
+                             'GAME=' + game, *options, 'experiment-flags'], cwd=capture.PORT,
                             capture_output=True, text=True, check=True)
     return result.stdout.splitlines()
 
@@ -75,7 +86,10 @@ def build(game, variant, compiler):
     directory = ROOT / 'build/fullframe' / game / variant
     directory.mkdir(parents=True, exist_ok=True)
     src, port, vendor = capture.SRC, capture.PORT, capture.VENDOR
-    paths = sources()
+    renamed = (port / 'platform/of_bench.h').is_file()
+    prefix = 'of' if renamed else 'ut'
+    fast_loop = 'OF_FAST_LOOP' if renamed else 'UT_FAST_LOOP'
+    paths = sources(game)
     loop = capture.once((src / 'loop.c').read_text(),
                         '            uint64_t frameStartNow = nowNanos();',
                         '            frame_begin(runner);\n            uint64_t frameStartNow = nowNanos();')
@@ -84,7 +98,7 @@ def build(game, variant, compiler):
     (directory / 'loop.c').write_text('#include "frame.h"\n' + loop)
     vm = (src / 'vm.c').read_text()
     if variant == 'bram':
-        vm = capture.once(vm, '#if defined(UT_FAST_LOOP) && !defined(OF_PC)', '#if defined(UT_FAST_LOOP)')
+        vm = capture.once(vm, '#if defined(' + fast_loop + ') && !defined(OF_PC)', '#if defined(' + fast_loop + ')')
     if config['kind'] == 'trace':
         vm = capture.once(vm, '        uint32_t instr = BinaryUtils_readUint32Aligned(bytecodeBase + ip);',
                           '        uint32_t instr = BinaryUtils_readUint32Aligned(bytecodeBase + ip);\n        frame_tick(ctx,ip,instr);')
@@ -95,14 +109,14 @@ def build(game, variant, compiler):
                         'int game_main(int argc, char **argv)')
     main = scene_main(main, config.get('scene'))
     (directory / 'main.c').write_text(main)
-    native = capture.once((port / 'platform/ut_native.c').read_text(),
-                          'void utNativeInstall(Runner *runner) {',
-                          'void utNativeInstall(Runner *runner) {\n    if(FRAME_DISABLE_NATIVE)return;')
-    (directory / 'ut_native.c').write_text(native)
+    native = capture.once((port / ('platform/' + prefix + '_native.c')).read_text(),
+                          'void ' + prefix + 'NativeInstall(Runner *runner) {',
+                          'void ' + prefix + 'NativeInstall(Runner *runner) {\n    if(FRAME_DISABLE_NATIVE)return;')
+    (directory / (prefix + '_native.c')).write_text(native)
     paths = [directory / 'loop.c' if p == src / 'loop.c' else
              directory / 'vm.c' if p == src / 'vm.c' else
              directory / 'main.c' if p == port / 'main.c' else
-             directory / 'ut_native.c' if p == port / 'platform/ut_native.c' else p for p in paths]
+             directory / (prefix + '_native.c') if p == port / ('platform/' + prefix + '_native.c') else p for p in paths]
     paths += [ROOT / 'fullframe' / n for n in ['bridge.c', 'platform.c', 'runtime.c', 'start.S']]
     flags = ['-march=rv32imafc_zicsr_zifencei', '-mabi=ilp32f', '-O2', '-g',
              '-ffunction-sections', '-fdata-sections', '-fno-tree-loop-distribute-patterns',
@@ -111,9 +125,11 @@ def build(game, variant, compiler):
     includes = [directory, port, port / 'platform', src, src / 'sw', src / 'image', src / 'video',
                 src / 'debug_font', ROOT / 'fullframe', ROOT / 'inputs/sdk/include',
                 *[vendor / n for n in ['stb/ds', 'stb/image', 'stb/vorbis', 'bzip2', 'sha1', 'md5', 'base64', 'miniz']]]
+    if (vendor / 'zstd').is_dir():
+        includes.append(vendor / 'zstd')
     app_flags = port_flags(game, directory)
     if variant == 'sdram':
-        app_flags = [x for x in app_flags if x != '-DUT_FAST_LOOP']
+        app_flags = [x for x in app_flags if x != '-D' + fast_loop]
     if config['profile'] == 'legacy':
         app_flags += ['-DOF_PC', '-falign-functions=64', '-falign-loops=64']
     else:
@@ -140,6 +156,8 @@ def build(game, variant, compiler):
                'FRAME_FB_UNCACHED=' + str(int(config['framebuffer'] == 'uncached')),
                'FRAME_CLOCK_COST=' + str(config['clock_cost']),
                'FRAME_AUDIO_REALTIME=' + str(int(config['audio'] == 'realtime'))]
+    if renamed:
+        defines.append('FRAME_PORT_RENAMED=1')
     if config.get('scene'):
         defines += ['FRAME_SCENE_ROOM=' + str(config['scene']['room']),
                     'FRAME_SCENE_SPADES=' + str(int(config['scene']['require_spades']))]

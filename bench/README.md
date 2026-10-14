@@ -189,6 +189,13 @@ Underrun counts are model observations, not physical Pocket measurements.
 
 ## Controlled later Deltarune scenes
 
+The [main 8d3cb19 rebase results](main-8d3cb19-spades-results.md) repeat the
+base/sharp comparison after the shared-port rename and save-state changes.
+The adapter detects `of_bench.h`, retains the real game/state modules with
+native save states disabled, and supports both old and new port names. It
+does not rewrite frozen inputs or earlier cases. New cases also compile the
+snapshot codec's zstd dependency and record an explicit game-file fingerprint.
+
 The [progress-scene results](2026-10-12-progress-slowdown-results.md) compare
 base and battle sharpening with diagnostics off. The recreated spade chase is
 expensive in both; the candidate adds 1.62% in that window and 0.81% at Castle

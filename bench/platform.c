@@ -70,7 +70,15 @@ int of_has_feature(uint32_t feature){(void)feature;return 0;}
 /* Harness texture-pack read adapter. */
 #if defined(PLATFORM_PACK_READ)
 #include "of_hooks.h"
+#ifdef FRAME_PORT_RENAMED
+#include "of_bench.h"
+#define frameReadCosts ofPlatformReadCosts
+#define FRAME_READ_COSTS OF_READ_COSTS
+#else
 #include "ut_bench.h"
+#define frameReadCosts utPlatformReadCosts
+#define FRAME_READ_COSTS UT_READ_COSTS
+#endif
 #include <limits.h>
 #include <stdio.h>
 
@@ -90,7 +98,7 @@ uint64_t platformPackRefusedNanos(void) {
     return 0; /* Host contention is not modeled. */
 }
 
-void utPlatformReadCosts(unsigned tenths[UT_READ_COSTS]) {
-    for (unsigned i = 0; i < UT_READ_COSTS; ++i) tenths[i] = 0;
+void frameReadCosts(unsigned tenths[FRAME_READ_COSTS]) {
+    for (unsigned i = 0; i < FRAME_READ_COSTS; ++i) tenths[i] = 0;
 }
 #endif

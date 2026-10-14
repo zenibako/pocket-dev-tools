@@ -8,7 +8,13 @@
 #ifdef FRAME_SCENE_ROOM
 #include "sw_renderer_private.h"
 #include "sw_call_notes.h"
+#ifdef FRAME_PORT_RENAMED
+#include "openfpga/platform/of_bench.h"
+#define frameSpeedMode ofPlatformSpeedMode
+#else
 #include "openfpga/platform/ut_bench.h"
+#define frameSpeedMode utPlatformSpeedMode
+#endif
 #ifndef FRAME_SCENE_EXPECT_ROOM
 #define FRAME_SCENE_EXPECT_ROOM FRAME_SCENE_ROOM
 #endif
@@ -95,9 +101,9 @@ static void frame_scene_check(Runner *r) {
  if(controllers || swr->contrastEnabled)frame_fail("overworld scene unexpectedly enables battle sampling");
  if(swrCallNotes)frame_fail("scene unexpectedly enables benchmark draw diagnostics");
  if(swrDrawTimed || r->vmContext->profiler)frame_fail("scene unexpectedly enables draw or script profiling");
- if(utPlatformSpeedMode()!=(FRAME_SPEED!=0))frame_fail("scene mode mismatch");
+ if(frameSpeedMode()!=(FRAME_SPEED!=0))frame_fail("scene mode mismatch");
  char line[160];snprintf(line,sizeof(line),"FRAMESCENE %u room=%d spades=%u visible=%u controllers=%u contrast=%u speed=%u\n",
-  r->frameCount,r->currentRoomIndex,spades,visible_spades,controllers,swr->contrastEnabled,utPlatformSpeedMode());frame_output(line);
+  r->frameCount,r->currentRoomIndex,spades,visible_spades,controllers,swr->contrastEnabled,frameSpeedMode());frame_output(line);
 }
 #endif
 void frame_end(Runner*r){

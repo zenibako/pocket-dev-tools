@@ -32,6 +32,32 @@ class ProgressReplayTests(unittest.TestCase):
         self.assertIn('utPlatformSetInputScript("");', build.scene_main(original, experiments.SCENES['castle']))
         self.assertEqual(build.scene_main(original, None), original)
 
+    def test_renamed_scene_setup_keeps_mode_and_room(self):
+        original = 'ofBenchStart();\n    int ret = loop(args, OF_GAME_NAME);'
+        result = build.scene_main(original, experiments.SCENES['spades'])
+        self.assertNotIn('ofBenchStart();', result)
+        self.assertIn('ofSaveFsSetVolatile(true);', result)
+        self.assertIn('static const OfJump', result)
+        self.assertIn('ofPlatformSetJumps(frame_scene_jumps, 2);', result)
+        self.assertIn('loop(args, OF_GAME_NAME)', result)
+
+    def test_renamed_sources_include_game_snapshot_and_codec(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            port = root / 'src/openfpga'
+            (port / 'platform').mkdir(parents=True)
+            (port / 'platform/of_bench.h').touch()
+            (port / 'platform/of_battle_ui.c').touch()
+            (root / 'vendor/zstd').mkdir(parents=True)
+            (root / 'vendor/zstd/zstd.c').touch()
+            with patch.object(build.capture, 'SRC', root / 'src'), patch.object(build.capture, 'PORT', port), patch.object(build.capture, 'VENDOR', root / 'vendor'):
+                files = build.sources('deltarune')
+            for name in ['of_bench.c', 'of_native.c', 'game_deltarune.c', 'of_state_requests.c', 'of_snapshot_envelope.c', 'of_battle_ui.c']:
+                self.assertIn(port / 'platform' / name, files)
+            self.assertIn(root / 'vendor/zstd/zstd.c', files)
+            self.assertNotIn(port / 'platform/of_pack_read.c', files)
+            self.assertNotIn(port / 'platform/ut_bench.c', files)
+
     def test_bad_or_changed_scene_is_rejected(self):
         with self.assertRaises(ValueError):
             build.scene_main('int ret = loop(args, UT_GAME_NAME);', {'room': -1})
