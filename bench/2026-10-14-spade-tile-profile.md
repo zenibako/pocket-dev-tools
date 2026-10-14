@@ -103,3 +103,6 @@ Undertale path, passes the resolved directory to the flags-only Make invocation,
 and refuses absent Deltarune data. Ten adapter tests, a real frozen Undertale
 Makefile flags check and verification of the original 1,631 inputs pass. No
 Undertale full-frame comparison is claimed for these rejected trials.
+
+The [translated-picture follow-up](2026-10-14-tile-motion-results.md) implements
+and tests the next design above while retaining all rejected trial evidence.

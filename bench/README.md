@@ -189,6 +189,10 @@ Underrun counts are model observations, not physical Pocket measurements.
 
 ## Controlled later Deltarune scenes
 
+The [translated-picture follow-up](2026-10-14-tile-motion-results.md) keeps tile
+contents cached as their placement changes, with fresh Speed/Accuracy spade,
+Castle Front and Undertale controls plus pixel/audio and eviction regressions.
+
 The [spade tile profile](2026-10-14-spade-tile-profile.md) records the subsequent
 Pocket comparison, passive CPU observations and two rejected classifier trials.
 Production classification was restored after both simulated regressions.
