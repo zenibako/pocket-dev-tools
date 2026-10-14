@@ -189,6 +189,10 @@ Underrun counts are model observations, not physical Pocket measurements.
 
 ## Controlled later Deltarune scenes
 
+The [spade tile profile](2026-10-14-spade-tile-profile.md) records the subsequent
+Pocket comparison, passive CPU observations and two rejected classifier trials.
+Production classification was restored after both simulated regressions.
+
 The [main 8d3cb19 rebase results](main-8d3cb19-spades-results.md) repeat the
 base/sharp comparison after the shared-port rename and save-state changes.
 The adapter detects `of_bench.h`, retains the real game/state modules with

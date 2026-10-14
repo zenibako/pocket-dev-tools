@@ -58,6 +58,37 @@ class ProgressReplayTests(unittest.TestCase):
             self.assertNotIn(port / 'platform/of_pack_read.c', files)
             self.assertNotIn(port / 'platform/ut_bench.c', files)
 
+    def test_game_fingerprint_uses_frozen_asset_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            port = Path(directory)
+            with patch.object(build.capture, 'PORT', port):
+                legacy = port / 'data.win'
+                legacy.write_bytes(b'legacy undertale')
+                self.assertEqual(build.game_data_path('undertale'), legacy)
+                modern = port / 'games/undertale/data.win'
+                modern.parent.mkdir(parents=True)
+                modern.write_bytes(b'modern undertale')
+                self.assertEqual(build.game_data_path('undertale'), modern)
+                with self.assertRaises(FileNotFoundError):
+                    build.game_data_path('deltarune')
+
+    def test_port_flags_allow_legacy_frozen_undertale_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            port = root / 'port'
+            port.mkdir()
+            (port / 'platform').mkdir()
+            (port / 'platform/of_bench.h').touch()
+            (port / 'data.win').write_bytes(b'frozen undertale')
+            (port / 'Makefile').write_text(
+                'G = games/undertale/\n'
+                'ifeq ($(wildcard $(G)data.win),)\n$(error missing game data)\nendif\n'
+                'SDK_DIR = unused\n'
+                'ifeq ($(wildcard $(SDK_DIR)/sdk.mk),)\n$(error missing SDK)\nendif\n'
+                'CFLAGS = -DEXPECTED=1\n# Neither sdk.mk\n$(error must not execute suffix)\n')
+            with patch.object(build.capture, 'PORT', port):
+                self.assertEqual(build.port_flags('undertale', root), ['-DEXPECTED=1'])
+
     def test_bad_or_changed_scene_is_rejected(self):
         with self.assertRaises(ValueError):
             build.scene_main('int ret = loop(args, UT_GAME_NAME);', {'room': -1})

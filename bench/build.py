@@ -61,6 +61,16 @@ def scene_main(main, scene):
     return capture.once(main, anchor, setup + anchor)
 
 
+def game_data_path(game):
+    modern = capture.PORT / 'games' / game / 'data.win'
+    if modern.is_file():
+        return modern
+    legacy = capture.PORT / 'data.win'
+    if game == 'undertale' and legacy.is_file():
+        return legacy
+    raise FileNotFoundError('Frozen game data is missing: ' + str(modern))
+
+
 def port_flags(game, directory):
     # Resolve only the declarative prefix, before header-cache cleanup and SDK
     # recipes. Never run the port Makefile's build/deploy targets or shell probes.
@@ -73,8 +83,9 @@ def port_flags(game, directory):
     path.write_text(text)
     options = []
     if (capture.PORT / 'platform/of_bench.h').is_file():
-        options = ['SAVESTATES=0', 'TARGET=pocket',
-                   'STATE_GAME_ID=' + capture.sha(capture.PORT / ('games/' + game + '/data.win'))[:16]]
+        game_data = game_data_path(game)
+        options = ['SAVESTATES=0', 'TARGET=pocket', 'G=' + str(game_data.parent) + '/',
+                   'STATE_GAME_ID=' + capture.sha(game_data)[:16]]
     result = subprocess.run(['make', '-s', '--no-print-directory', '-f', str(path),
                              'GAME=' + game, *options, 'experiment-flags'], cwd=capture.PORT,
                             capture_output=True, text=True, check=True)
