@@ -10,6 +10,9 @@ adapter historically ran **os25**. New performance cases can select a separate
 Butterscotch baseline remain unchanged. Simulated timings cannot be presented
 as physical Pocket performance.
 
+Scene reports: [Celeste 2](CELESTE2-OS20.md), [Moss Moss](MOSS-OS20.md),
+and the [iterator/callback A/B experiments](ITERATOR-OS20.md).
+
 Build the os20 platform once before creating os20 cases:
 
 ```sh
