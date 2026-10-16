@@ -195,3 +195,6 @@ The next optimization should preserve hot VM/code placement while changing the
 iterator body, then benchmark both carts. Treating the original A/B percentages
 as the intrinsic cost of the iterator algorithm would send that work in the
 wrong direction. No additional runtime change was promoted by this diagnosis.
+
+The [follow-up table-identity optimization](FOREACH-TABLE-OS20.md) now passes
+all six sampled windows: Moss improves and Celeste retains exact cycle counts.
