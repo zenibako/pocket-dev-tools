@@ -89,3 +89,13 @@ The final source is GPG signed. The test package is
 its adjacent `audio-pairs-build-info.json` records executable/package hashes.
 Production ELF SHA-256:
 `c4af75204fe7f59633fbefc63091cebf95732acbe6ee320482404b7ff3ec2dd6`.
+
+## Rebased after PR #13 merged
+
+The audio commits are now `793c98d` and `9f4cd16` on merged `main` (`1ef6525`).
+Their final tree is byte-identical to `9edffde`, both new signatures verify,
+and the core/runtime and Celeste save-state tests pass. The pre-rebase commits
+remain on `archive/audio-output-pairs-pre-rebase-20261016`. The original
+captures and package retain their historical provenance; a fresh rebased
+Trailhead build reproduces the accepted ELF and BRAM exactly. The follow-up
+[environment-lookup experiments](ENV-LOOKUP-OS20.md) were rejected.

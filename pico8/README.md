@@ -13,7 +13,8 @@ as physical Pocket performance.
 Scene reports: [Celeste 2](CELESTE2-OS20.md), [Moss Moss](MOSS-OS20.md),
 the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [table-identity optimization](FOREACH-TABLE-OS20.md), and
-[PCM output-pair batching](AUDIO-PAIRS-OS20.md).
+[PCM output-pair batching](AUDIO-PAIRS-OS20.md), and the
+[rejected environment-lookup experiments](ENV-LOOKUP-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 
