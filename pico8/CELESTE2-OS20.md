@@ -70,6 +70,11 @@ stores level tiles behind `peek(0x4300+...)`; an `mget` optimization would miss
 this workload. Trailhead records 432 memory API calls, 608 draw-state calls and
 359 helper calls per frame in the diagnostic build.
 
+The companion [Moss Moss os20 study](MOSS-OS20.md) records two gameplay windows
+at about 20 FPS capacity, with heavy iterator/callback/environment work. Include
+both carts in shared VM/API optimization checks; a Celeste gain alone does not
+establish a safe shared-runtime improvement.
+
 The next optimization experiments should prioritize:
 
 1. **Reduce inherited-property and method-call overhead without displacing

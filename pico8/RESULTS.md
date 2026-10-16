@@ -13,6 +13,12 @@ Both intro rooms fit the runtime's 30 FPS target; Trailhead measures 43.263 ms
 per full frame (23.11 FPS capacity). Its update/draw workload and Lua lookup/call
 cost dominate; GC averages 0.048 ms in the separate diagnostic build.
 
+The companion [Moss Moss study](MOSS-OS20.md) uses the same os20 platform and
+source, with gameplay windows at frames 180–191 and 234–245. It measures about
+20 FPS capacity, dominated by VM, iterator/callback and environment-table work.
+Moss renders inside `_update`; its zero separate draw time does not isolate
+graphics cost. Shared VM/API optimization validation should include both carts.
+
 ## 2026-10-10: z8lua call fast path (pico8pocket PR #10)
 
 Baseline `main` `033762e`; candidate `877baae`, later merged as `442a836`. The
