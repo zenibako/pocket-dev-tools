@@ -2,9 +2,16 @@
 
 Summaries of baseline/candidate studies run through this adapter. Cart-level
 tables, raw logs and reports stay in the ignored private cases named below.
-Every timing is **simulated**: os25 RTL at 100 MHz, runtime step plus fixed PCM
-render over frames 180–182 with cold CPU caches. Pico8Pocket ships os20; none
-of this is a measured Pocket frame rate. See [README.md](README.md) for limits.
+Every timing is **simulated**. The 2026-10-10 study below uses os25 RTL at
+100 MHz, runtime step plus fixed PCM render over frames 180–182 with cold CPU
+caches. Pico8Pocket ships os20; none of this is a measured Pocket frame rate.
+See [README.md](README.md) for limits.
+
+The newer [Celeste 2 intro/Trailhead study](CELESTE2-OS20.md) uses the pinned
+**os20 at 90 MHz**, current source, fixed final Lua seed and 12-frame windows.
+Both intro rooms fit the runtime's 30 FPS target; Trailhead measures 43.263 ms
+per full frame (23.11 FPS capacity). Its update/draw workload and Lua lookup/call
+cost dominate; GC averages 0.048 ms in the separate diagnostic build.
 
 ## 2026-10-10: z8lua call fast path (pico8pocket PR #10)
 
