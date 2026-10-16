@@ -94,3 +94,12 @@ mutants, sanitizer evidence and code-generation audits. The source worktree is
 in `-r1/candidate`; `archive/env-lookup-experiments-20261016` preserves the final
 rejected chain. `-r3/export.py` validates six complete results before exporting
 the CSV. There is no accepted lookup package or device performance claim.
+
+## Follow-up: fixed surrounding layout
+
+The [constrained fixed-layout diagnostic](ENV-LAYOUT-CONTROL-OS20.md) improves
+Moss steady by 0.713% in quiet replay and 0.785% under scanout. Trailhead is
+effectively flat (+0.007% quiet, -0.021% scanout). This supports the algorithm's
+potential in Moss and collateral compiler changes as a contributor to the full
+rebuild regressions. The diagnostic preserves the accepted register contract;
+it is not the exact R3 donor, a production candidate or an accepted package.
