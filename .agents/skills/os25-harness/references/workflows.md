@@ -102,9 +102,15 @@ single-lane instruction/pipeline observers are not validated for os20.
 
 The os20 platform uses frozen OS `8318f25`, dual issue at 90 MHz, 32 KiB I-cache,
 64 KiB D-cache, reduced-accuracy FMA, 4-slot/32-op store buffer and 660-cycle
-SDRAM refresh. This matches the documented Pico8Pocket profile, but Diablo's
-shipped bitstream lacks a generation manifest. Exact bitstream source equivalence
-and hardware timing parity remain unproven. Check device compiler/libc/flags,
+SDRAM refresh. Pico8Pocket's `scripts/fetch-deps.sh` identifies the production
+runtime (currently `openfpgaCore` release `pocket-runtime-a58aacd`). Its CPU/cache/
+SDRAM source profile agrees with the frozen adapter, but save-state gateware and
+firmware differ. Keep `os20.rbf_r`, `os.bin` and `loader.bin` from one pinned
+release: the bitstream's BRAM contents and OS must match builds. Recheck source
+configuration when upgrading; preserve frozen cases and create a separately
+pinned platform with recaptured evidence for any platform change. Source-profile
+agreement does not establish fitted-bitstream equivalence or hardware timing
+parity. Check device compiler/libc/flags,
 alignment and BRAM layout separately; the harness uses GCC13 and a bounded
 allocator. Runtime timing excludes presentation, adaptive skipping and OS/SD/
 live audio scheduling, uses fixed PCM and starts with cold RTL caches. Do not

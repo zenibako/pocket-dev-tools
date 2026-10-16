@@ -29,10 +29,20 @@ and diagnostic scanout cadence, and records CPU/simulator/source hashes. Each
 os20 replay reads and validates the actual MMIO clock register before timing.
 Completed platform builds are preserved; `rtl` can resume an incomplete build.
 
-**Provenance limit:** Pico8Pocket pins Diablo `8cb3198`'s os20 bitstream (SHA-256
-`f8e21c5f75cbbd2f442e028118a855e5b4490eac6bdf21ae322fecf798590719`), which has
-no source-generation manifest. The new platform matches the documented os20
-configuration; exact equivalence to that shipped bitstream remains unproven.
+**Production provenance:** Resolve the current runtime identity from
+Pico8Pocket's `scripts/fetch-deps.sh`. As checked on 2026-10-16, it pins
+`zenibako/openfpgaCore` at `a58aacd` and release `pocket-runtime-a58aacd`:
+the `92202ab` FPGA fit with BRAM bootloader/OS `.fasttext` re-patched by the
+firmware build. Keep `os20.rbf_r`, `os.bin` and `loader.bin` from that same pinned
+release; the bitstream and OS must match builds. Its os20 CPU configuration,
+generator, VexiiRiscv pin (`580b76c`), CPU system and Pocket SDRAM controller
+are unchanged from frozen OS `8318f25`; save-state/CRAM0 handshake logic,
+hardware mixer restoration and firmware differ. The fitter seed also changed
+from 33 to 12. These production save/restore paths are outside runtime replay.
+Recheck these sources on runtime upgrades. This confirms source-profile
+continuity, not fitted-bitstream equivalence or device timing parity. Preserve
+the frozen platform and its historical cases; a platform change needs a separate
+pin and recaptured evidence.
 The existing chip model retains conservative cycle timing checks. The compiler,
 allocator, omitted OS/presentation work and cold caches remain harness limits.
 Single-lane os25 instruction/pipeline observers are not validated for dual-issue

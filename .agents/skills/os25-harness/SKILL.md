@@ -95,9 +95,12 @@ hash agreement with byte identity unverified.
 os20 timing uses the recorded 90 MHz clock. Preserve historical os25 cases at
 their original 100 MHz; clock rescaling cannot reproduce the different CPU and
 cache configuration. Existing single-lane os25 cache/pipeline observers are not
-validated for dual-issue os20. The shipped bitstream source, device compiler/libc/
-layout, production allocator, presentation, adaptive skipping and OS/SD/live
-audio scheduling still require separate evidence. Butterscotch's os25 calibration
+validated for dual-issue os20. Resolve the production runtime from Pico8Pocket's
+`scripts/fetch-deps.sh`; keep its bitstream, OS and loader as a matched release
+set. Recheck source-profile agreement on runtime upgrades. Fitted-bitstream
+equivalence, device compiler/libc/layout, production allocator, presentation,
+adaptive skipping and OS/SD/live audio scheduling still require separate
+evidence. Butterscotch's os25 calibration
 does not calibrate Pico8Pocket os20 or establish physical Pocket FPS.
 
 ## Accept evidence before interpreting performance
