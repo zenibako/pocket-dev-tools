@@ -5,6 +5,10 @@ Celeste 2 nor Moss Moss regress. Keep the production baseline at `bc2e8b6`.
 The candidates remain isolated, signed experiment commits; no runtime change
 was promoted to the active game checkout.
 
+The [follow-up cause analysis](ITERATOR-CAUSES.md) separates instruction savings
+from placement, branch-range and memory-traffic effects using unchanged ELFs
+and controls that retain the candidate layout.
+
 This follows the diagnoses in [Celeste 2](CELESTE2-OS20.md) and
 [Moss Moss](MOSS-OS20.md). The measurements below are **simulated os20/90 MHz
 runtime costs**, not measured Pocket FPS. A negative cost change is faster.
