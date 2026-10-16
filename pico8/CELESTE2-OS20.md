@@ -1,5 +1,12 @@
 # Celeste 2 intro and Trailhead performance — 2026-10-16
 
+Follow-up: [the rendering-cost study](RENDER-COSTS-OS20.md) profiles the accepted
+audio build and selects a shared full-tile experiment. It also resolves the
+current compiler discrepancy: both current images use GCC13.2; the runtime's
+`-ffreestanding` flag accounts for the inspected tiny-copy calls. The GCC16
+comparison below is historical, and the timings here retain their original
+source/build provenance.
+
 The stationary intro scenes fit the 30 FPS runtime budget. Trailhead, the first
 named level, takes **43.263 ms per complete frame**, equivalent to **23.11 FPS**
 of simulated runtime capacity. Its larger object workload adds update and Lua

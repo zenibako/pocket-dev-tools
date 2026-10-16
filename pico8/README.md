@@ -17,7 +17,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [rejected environment-lookup experiments](ENV-LOOKUP-OS20.md),
 [fixed-layout lookup diagnostic](ENV-LAYOUT-CONTROL-OS20.md),
 [single-result peek experiment](PEEK-SINGLE-OS20.md), and
-[warm immediate-return call experiments](EMPTY-LUA-CALL-OS20.md).
+[warm immediate-return call experiments](EMPTY-LUA-CALL-OS20.md), and
+[rendering API costs and the next tile experiment](RENDER-COSTS-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 
