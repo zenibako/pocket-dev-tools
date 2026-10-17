@@ -28,7 +28,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [the source palette PR matrix](PALETTE-SOURCE-OS20.md), and
 [source components and compiler-budget attribution](PALETTE-COMPONENTS-OS20.md),
 [matched GC-wrapper policy controls](GC-POLICY-OS20.md),
-and [accepted-audio palette and selective GC experiments](ACCEPTED-COMBOS-OS20.md).
+[accepted-audio palette and selective GC experiments](ACCEPTED-COMBOS-OS20.md),
+and [isolated palette leaves and Pocket A/B package](PALETTE-LEAF-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 
