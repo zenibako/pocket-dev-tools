@@ -1,5 +1,8 @@
 # Rendering costs on the accepted audio build — 2026-10-16
 
+Follow-up: [the complete-tile experiments](TILE-FULL-OS20.md) improve Celeste
+but retain small Moss regressions; neither candidate is promoted.
+
 The next shared experiment should specialize the existing **fully visible 8×8
 tile blitter**, preserving both default and remapped palettes. Celeste spends
 1.69–2.08 ms/frame inside the observed `spr` bodies; Moss spends about 1.02 ms
