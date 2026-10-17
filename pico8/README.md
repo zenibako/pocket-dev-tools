@@ -27,7 +27,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [its cause-isolation and combined BRAM follow-up](DRAW-IDENTITY-DEEP-OS20.md),
 [the source palette PR matrix](PALETTE-SOURCE-OS20.md), and
 [source components and compiler-budget attribution](PALETTE-COMPONENTS-OS20.md),
-and [matched GC-wrapper policy controls](GC-POLICY-OS20.md).
+[matched GC-wrapper policy controls](GC-POLICY-OS20.md),
+and [accepted-audio palette and selective GC experiments](ACCEPTED-COMBOS-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 
