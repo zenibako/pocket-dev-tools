@@ -1,5 +1,9 @@
 # Complete-tile experiments — 2026-10-16
 
+Follow-up: [remapped-palette tiles and placement controls](TILE-PALETTE-LAYOUT-OS20.md)
+recover the Moss losses, but retain a small Trailhead regression. Neither new
+variant is promoted; that report records the compiler/layout controls and limits.
+
 Keep the accepted audio build. The best tile variant improves Celeste's tower
 by **3.02%** and Trailhead by **0.67%**, but slows the two Moss windows by
 **0.09%/0.17%** in quiet replay. Those Moss costs are small (0.044/0.084 ms per
