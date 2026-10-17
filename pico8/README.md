@@ -21,7 +21,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [rendering API costs](RENDER-COSTS-OS20.md), and the
 [complete-tile experiments](TILE-FULL-OS20.md), and
 [remapped-palette tiles and placement controls](TILE-PALETTE-LAYOUT-OS20.md), and
-[the two-path tile hybrid](TILE-HYBRID-OS20.md).
+[the two-path tile hybrid](TILE-HYBRID-OS20.md), and
+[the deeper palette investigation](TILE-DEEP-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 

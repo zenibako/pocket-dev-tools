@@ -11,8 +11,10 @@ frame), but they do not meet the shared no-regression gate. Neither variant is
 promoted or packaged. The active port and accepted audio worktree are unchanged.
 
 This follows [the rendering-cost study](RENDER-COSTS-OS20.md): both games use
-fully visible 8×8 tiles, with default palettes in Celeste and remapped palettes
-in Moss. The study measured API bodies; this experiment measures complete,
+fully visible 8×8 tiles. A [later census](TILE-DEEP-OS20.md) clarifies that both
+games' selected tile draws use identity draw palettes; Moss remaps its screen
+palette, which clears the combined palette flag. The study measured API bodies;
+this experiment measures complete,
 uninstrumented runtime frames. All timings here are **simulated os20/90 MHz**,
 not measured Pocket FPS or isolated tile-kernel savings.
 

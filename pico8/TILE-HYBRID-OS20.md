@@ -1,5 +1,9 @@
 # Two-path tile hybrid — 2026-10-16
 
+Follow-up: [the deeper palette investigation](TILE-DEEP-OS20.md) separates
+Moss's identity draw palette at sampled tile calls from its remapped screen
+palette and measures tile-kernel changes with the surrounding binary held fixed.
+
 The hybrid does not pass the shared no-regression gate. It improves Celeste's
 tower and both Moss windows against accepted audio, but slows Trailhead by
 **0.18%** in quiet replay. Its quiet results are worse than the preceding

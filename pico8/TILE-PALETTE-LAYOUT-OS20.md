@@ -3,6 +3,11 @@
 Follow-up: [the two-path tile hybrid](TILE-HYBRID-OS20.md) removes the third
 BRAM loop and leaves 250 bytes free, but does not improve the performance gate.
 
+The [deeper investigation](TILE-DEEP-OS20.md) confirms that Moss enters the
+remapped branch because its screen palette is nonidentity. Its draw palette
+is identity at these timed tile calls. Earlier frame measurements remain valid;
+the branch name did not establish actual draw-color remapping.
+
 Keep the accepted audio build. A dedicated remapped-palette tile path makes
 both Moss windows faster, but both source variants slightly slow Celeste's
 Trailhead window. The smaller variant reduces that cost to **0.07%**, without

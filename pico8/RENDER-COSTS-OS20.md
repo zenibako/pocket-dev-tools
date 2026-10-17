@@ -3,6 +3,12 @@
 Follow-up: [the complete-tile experiments](TILE-FULL-OS20.md) improve Celeste
 but retain small Moss regressions; neither candidate is promoted.
 
+Correction from the [deeper palette investigation](TILE-DEEP-OS20.md): the
+original census classified the combined runtime palette flag. Moss's selected
+tile draws use an identity draw palette; its screen palette is remapped. These
+states
+need separate treatment when selecting a drawing fast path.
+
 The next shared experiment should specialize the existing **fully visible 8×8
 tile blitter**, preserving both default and remapped palettes. Celeste spends
 1.69–2.08 ms/frame inside the observed `spr` bodies; Moss spends about 1.02 ms
@@ -63,12 +69,12 @@ A separate native path census preserves all 600 output rows in each scene.
 It counts executed paths without per-pixel counters; geometry counts are not
 actual stores, opacity classification or cycle costs.
 
-| Window | Visible full tiles/frame | Palette | Transparency |
+| Window | Visible full tiles/frame | Combined palette flag | Transparency |
 |---|---:|---|---|
 | Tower | 203 | Default | Default |
 | Trailhead | 138 | Default | Default |
-| Moss steady | 45 | Remapped | Default |
-| Moss GC | 45.917 | Remapped | Default |
+| Moss steady | 45 | Nondefault | Default |
+| Moss GC | 45.917 | Nondefault | Default |
 
 There are no visible partial tiles or odd source-start rows in these samples.
 Celeste's general flipped sprite calls in these windows are rejected by clipping;
@@ -78,8 +84,10 @@ must retain their existing behavior.
 The current tile loop repeats generic clipping-width, odd-pixel, pair-loop and
 palette/transparency handling. A bounded experiment can specialize complete
 8×8 rows and move invariant color-mode decisions outside the pixel-pair loop,
-while retaining the generic clipped path. Supporting only default colors would
-miss Moss's measured tile workload. Keep transparent source pixels and remapped
+while retaining the generic clipped path. The original flag census alone did
+not establish whether Moss's draw colors were remapped; the follow-up above
+confirms identity draw colors and remapped screen colors. Keep transparent
+source pixels and remapped
 colors correct; do not assume that default transparency means every pixel is
 opaque. Relevant accepted source anchors are `src/runtime/runtime.cpp`:
 `draw_sprite` at 696, `blit_tile` at 1360 and `api_map` at 1426.
