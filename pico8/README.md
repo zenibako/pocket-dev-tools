@@ -20,7 +20,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [warm immediate-return call experiments](EMPTY-LUA-CALL-OS20.md), and
 [rendering API costs](RENDER-COSTS-OS20.md), and the
 [complete-tile experiments](TILE-FULL-OS20.md), and
-[remapped-palette tiles and placement controls](TILE-PALETTE-LAYOUT-OS20.md).
+[remapped-palette tiles and placement controls](TILE-PALETTE-LAYOUT-OS20.md), and
+[the two-path tile hybrid](TILE-HYBRID-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 

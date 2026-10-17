@@ -1,5 +1,8 @@
 # Remapped-palette tiles and placement controls — 2026-10-16
 
+Follow-up: [the two-path tile hybrid](TILE-HYBRID-OS20.md) removes the third
+BRAM loop and leaves 250 bytes free, but does not improve the performance gate.
+
 Keep the accepted audio build. A dedicated remapped-palette tile path makes
 both Moss windows faster, but both source variants slightly slow Celeste's
 Trailhead window. The smaller variant reduces that cost to **0.07%**, without
