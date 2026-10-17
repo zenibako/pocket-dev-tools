@@ -24,7 +24,9 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [the two-path tile hybrid](TILE-HYBRID-OS20.md), and
 [the deeper palette investigation](TILE-DEEP-OS20.md), and
 [the separate draw-identity experiment](DRAW-IDENTITY-OS20.md), and
-[its cause-isolation and combined BRAM follow-up](DRAW-IDENTITY-DEEP-OS20.md).
+[its cause-isolation and combined BRAM follow-up](DRAW-IDENTITY-DEEP-OS20.md),
+[the source palette PR matrix](PALETTE-SOURCE-OS20.md), and
+[source components and compiler-budget attribution](PALETTE-COMPONENTS-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 
