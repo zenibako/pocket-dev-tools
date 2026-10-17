@@ -113,3 +113,8 @@ These are selected deterministic runtime windows under simulated os20/90 MHz.
 They do not establish physical Pocket speed, whole-game compatibility,
 presentation/OS scheduling, or isolated kernel cycles. With the gate already
 failed, no extra title/intro windows, package or PR are produced.
+
+The [controlled follow-up](DRAW-IDENTITY-DEEP-OS20.md) finds that reverting
+only this candidate's renderer makes it slower again. It also records a
+count-free combined diagnostic that improves both games in copied accepted
+images; a production source implementation remains untested.
