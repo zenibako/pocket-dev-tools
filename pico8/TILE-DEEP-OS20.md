@@ -167,3 +167,7 @@ Fresh checks pass for all 1,631 frozen inputs and the existing os20 platform.
 Independent actual-image and final-report reviews find no blockers. The final
 private evidence manifest covers 478 files. SHA-256:
 `af955fcdb4de7296ad86bbbc2c175af4c0821caab93a551a1f4a742187d766e0`.
+
+The approved source follow-up is now measured in the
+[separate draw-identity experiment](DRAW-IDENTITY-OS20.md). Correctness and
+production fit pass, but the full build fails the no-regression gate.
