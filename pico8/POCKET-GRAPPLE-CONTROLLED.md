@@ -2,6 +2,8 @@
 
 This extends [detailed capture and controlled runs](POCKET-DETAILED-CONTROLLED.md) after the physical stationary captures showed that their workload did not reproduce moving gameplay stalls. No optimization is promoted by this change.
 
+The [physical Pocket results](POCKET-GRAPPLE-RESULTS-20261018.md) now compare repeated moving Trailhead and Moss runs and identify the grapple throw as the recurring stall window.
+
 ## Install and run
 
 The combined ZIP contains both **PICO-8 capture baseline** and **PICO-8 capture palette**:
