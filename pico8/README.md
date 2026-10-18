@@ -32,7 +32,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [isolated palette leaves and Pocket A/B package](PALETTE-LEAF-OS20.md),
 [the corrected A/B package boot filenames](VARIANT-BOOT-FIX.md),
 [Pocket capture builds and report instructions](POCKET-CAPTURE.md),
-and [capture status and persistence diagnostics](CAPTURE-PERSISTENCE.md).
+[capture status and persistence diagnostics](CAPTURE-PERSISTENCE.md),
+and [the first physical Pocket Trailhead reports](POCKET-TRAILHEAD-20261018.md).
 
 Build the os20 platform once before creating os20 cases:
 
