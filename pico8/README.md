@@ -30,7 +30,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [matched GC-wrapper policy controls](GC-POLICY-OS20.md),
 [accepted-audio palette and selective GC experiments](ACCEPTED-COMBOS-OS20.md),
 [isolated palette leaves and Pocket A/B package](PALETTE-LEAF-OS20.md),
-and [the corrected A/B package boot filenames](VARIANT-BOOT-FIX.md).
+[the corrected A/B package boot filenames](VARIANT-BOOT-FIX.md),
+and [Pocket capture builds and report instructions](POCKET-CAPTURE.md).
 
 Build the os20 platform once before creating os20 cases:
 
