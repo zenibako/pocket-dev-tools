@@ -34,7 +34,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [Pocket capture builds and report instructions](POCKET-CAPTURE.md),
 [capture status and persistence diagnostics](CAPTURE-PERSISTENCE.md),
 [the first physical Pocket Trailhead reports](POCKET-TRAILHEAD-20261018.md),
-and [detailed Pocket capture and controlled runs](POCKET-DETAILED-CONTROLLED.md).
+[detailed Pocket capture and controlled runs](POCKET-DETAILED-CONTROLLED.md),
+and [the moving Celeste grapple preset and packages](POCKET-GRAPPLE-CONTROLLED.md).
 
 Build the os20 platform once before creating os20 cases:
 

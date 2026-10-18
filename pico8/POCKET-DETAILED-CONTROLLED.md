@@ -2,6 +2,8 @@
 
 The new baseline and palette packages extend the [working diagnostic capture](CAPTURE-PERSISTENCE.md) after the [first physical Trailhead comparison](POCKET-TRAILHEAD-20261018.md). They add correlated phase/GC/audio evidence and controlled-input routes. No new optimization is promoted.
 
+The newer [movement and grapple package](POCKET-GRAPPLE-CONTROLLED.md) replaces the Celeste menu preset with scripted movement. This report preserves the earlier stationary package and its evidence.
+
 ## Package and use
 
 Local combined ZIP: `experiments/pico8-sources/detailed-controlled-20261018-r1/pico8pocket-capture-controlled-ab.zip`.
