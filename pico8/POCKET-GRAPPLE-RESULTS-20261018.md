@@ -41,6 +41,11 @@ The next diagnostic should isolate inherited-property/metamethod and `all` itera
 
 ## Evidence
 
+The [follow-up inherited-field diagnostics](GRAPPLE-COSTS-OS20.md) now measure
+the repeated scans/callbacks and show a 23% full-throw cost reduction in a
+matched-code os20 diagnostic. This is simulated causal evidence, not a new
+runtime optimization or physical Pocket FPS result.
+
 Private original uploads, strict journal/metadata validation, parsed metrics, correlated worst rows, and reproducible analysis are preserved under `experiments/pico8-device/grapple-moss-20261018-r1/` (`analyze.py`, `analysis.json`, `grapple-state-correlation.json`). Source/trace provenance remains in the earlier movement package experiment. The attachments are source data and no attached text was executed.
 
 - Baseline upload SHA-256: `8f0ff59569da350a1981339fe2b9a20e837603b2a1cd22e71b933d041d1c89ee`.
