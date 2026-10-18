@@ -34,8 +34,10 @@ isolated renderer regression. Even the separate draw/skip averages still cover
 unmatched game states and GC/audio activity.
 
 The runtime step consumed 79.40%/78.92% of observed wall time. Outer audio
-consumed 16.47%/16.76%, and presentation 3.33%/3.35%. Mid-frame audio and GC are
-already inside the runtime step. These are measured-region contributions, not
+consumed 16.47%/16.76%, and presentation 3.33%/3.35%. GC is already inside the
+runtime step. Source inspection confirms these exact builds synthesize audio
+in the outer pump; the runtime service hook only polls input. These are
+measured-region contributions, not
 independent recoverable speedups. Audio time per frame is also affected by loop
 rate; reports do not contain audio-pair counts for normalization.
 
@@ -43,8 +45,10 @@ The candidate's runtime-step maximum was 171.955 ms versus 87.925 ms baseline;
 presentation maxima remained 3.187/3.048 ms. This narrows the large reported
 spike to the broad runtime region rather than a comparable final-presentation
 spike. Aggregated maxima lack frame identities, so do not pair or sum them.
-The reports cannot distinguish update, draw, GC, mid-frame audio, cache effects
-or route-dependent work as the cause.
+The reports cannot distinguish update, draw, GC, runtime persistence, cache
+effects or route-dependent work as the cause. The outer audio pump is outside
+the runtime measurement, so its synthesis work cannot directly explain the
+runtime-step spike; elapsed timings can still include OS interruptions.
 
 ## Validation and persistence
 

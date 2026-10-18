@@ -41,8 +41,9 @@ A fixed-size 256 KiB NUL-padded text journal records source build ID, pinned
 runtime, cart content hash, controls and audio/display settings per capture.
 It records loop and presentation-call rates, draw counts, render divisors,
 measured-work budget overruns and mean/p95/p99/max timings in microseconds.
-Runtime timing includes any mid-frame audio and GC; outer audio pump and
-presentation timings are separate contributions. Presentation-call rates are
+Runtime timing includes GC. In these builds the runtime service hook polls
+input; synthesis runs in the separately timed outer audio pump, not mid-frame.
+Presentation timing is also separate. Presentation-call rates are
 not an independent hardware scanout measurement. Percentiles use nearest rank.
 
 Capture uses a bounded 4096-frame RAM buffer. It adds no timer calls, heap
