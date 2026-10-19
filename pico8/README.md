@@ -44,7 +44,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [the stable-image Moss controls and source refinements](MOSS-STABLE-IMAGE-OS20.md),
 [the explicit callback payload/tag experiment](SCALAR-CALLBACK-OS20.md),
 [interpreter isolation and the combined image controls](INTERPRETER-ISOLATION-OS20.md),
-and [Moss recovery and the dense iterator](MOSS-REGRESSION-FIX-OS20.md).
+[Moss recovery and the dense iterator](MOSS-REGRESSION-FIX-OS20.md),
+and [the unused-helper cleanup comparison](HELPER-CLEANUP-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 
