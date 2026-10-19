@@ -38,7 +38,8 @@ the [iterator/callback A/B experiments](ITERATOR-OS20.md), and the
 [the moving Celeste grapple preset and packages](POCKET-GRAPPLE-CONTROLLED.md),
 [physical grapple/Moss results and stall attribution](POCKET-GRAPPLE-RESULTS-20261018.md),
 [grapple inherited-field cost diagnostics](GRAPPLE-COSTS-OS20.md),
-and [the guarded inheritance shortcut and regression matrix](GUARDED-DELEGATE-OS20.md).
+[the guarded inheritance shortcut and regression matrix](GUARDED-DELEGATE-OS20.md),
+and [the isolated Moss regression causes](GUARDED-MOSS-ISOLATION-OS20.md).
 
 Build the os20 platform once before creating os20 cases:
 

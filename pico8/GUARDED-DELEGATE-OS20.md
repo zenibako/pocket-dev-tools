@@ -151,3 +151,7 @@ lookup code generation from executable layout, followed by another Moss gate.
 The large Celeste win justifies continuing that investigation; the current
 results do not justify declaring either candidate regression-free or packaging
 one as an accepted optimization.
+
+The [Moss isolation follow-up](GUARDED-MOSS-ISOLATION-OS20.md) subsequently
+separates local lookup-body costs from surrounding binary/fetch effects using
+both fixed-slot swap directions and a negative restore-scheduling control.
