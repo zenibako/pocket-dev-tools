@@ -106,7 +106,15 @@ classifies callback parameter `f` as a candidate, while snapshot compilation
 rejects it with "reference has nonarg uses" before LTO. The link-time pass inherits
 that rejection. This identifies the compiler decision, rather than merely
 inferring it from assembly; it does not by itself attribute the Moss timing loss
-to one instruction. These source variants remain isolated.
+to one instruction. Early GIMPLE pinpoints the representation change: the local
+snapshot payload becomes a `MEM <union GCObject * const>` load directly from
+`f`, while its tag remains the ordinary `f->tt_` access. Baseline retains an
+accepted `Value` component load. The two non-debug uses of original `f` in the
+snapshot body are this payload load and tag read. This implicates the interaction between early local scalar replacement and
+IPA-SRA recognition; the post-guard alias reload is already gone. Dumps and exact commands are retained in
+`discovery/ipa-sra-{baseline,snapshot}/`. A subsequent experiment should preserve
+the original payload/tag representation or explicitly control that internal ABI
+before spending time on broader timings. These source variants remain isolated.
 
 ## Verification and retained evidence
 
