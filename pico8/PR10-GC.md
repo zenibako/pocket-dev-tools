@@ -145,5 +145,8 @@ to create new immutable cases rather than modifying these inputs.
 [verified summary and evidence hashes](../experiments/pico8-sources/calls-gc-20261011/SUMMARY.json),
 or [the result bundle](../experiments/pico8-sources/calls-gc-20261011/PR10-GC-results.zip).
 
-![Allocation/GC scheduling and clean/diagnostic frame timings](/Users/chanderson/Projects/undertale-pocket/openfpga-os25-harness/experiments/pico8-sources/calls-gc-20261011/PR10-GC.png)
+![Allocation/GC scheduling and clean/diagnostic frame timings](../experiments/pico8-sources/calls-gc-20261011/PR10-GC.png)
+
+The chart, like the linked trace files, is a private untracked output under the
+ignored `experiments/` directory; it is not part of a fresh checkout.
 

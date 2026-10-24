@@ -16,6 +16,7 @@ Do not generalize the bounded cart/scene or game/chapter evidence.
 
 ## Locate and verify
 
+The harness repository is <https://github.com/zenibako/pocket-harness> (private).
 Use the harness path supplied by the user, an `OS25_HARNESS_ROOT` environment
 value, or a sibling `openfpga-os25-harness` checkout next to the Butterscotch
 checkout. Verify `AGENTS.md`, `run.py`, `experiments.py` and `cpu-lock.json` are
