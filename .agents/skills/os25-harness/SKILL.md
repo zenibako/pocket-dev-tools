@@ -1,11 +1,12 @@
 ---
 name: os25-harness
+argument-hint: "[harness: path or host:path of the pocket-harness checkout]"
 description: Test Pico8Pocket on the isolated os20/90 MHz RTL adapter, or Butterscotch Undertale and Deltarune Chapter 1 on os25. Use for fixed-seed cart performance comparisons, baseline/candidate output replay, supported cache/pipeline analysis, sprite probes or hardware calibration evidence.
 ---
 
 # openFPGA replay: Pico8Pocket os20 and Butterscotch os25
 
-Use the standalone `openfpga-os25-harness` repository for functional RV32 replay
+Use the standalone `pocket-harness` repository for functional RV32 replay
 and simulated CPU/cache/memory measurements. Desktop captures check broader
 scenes; the harness measures selected target workloads; a Pocket run checks
 actual OS, SD, display/audio and board behavior. Select **os20 at 90 MHz for
@@ -17,10 +18,11 @@ Do not generalize the bounded cart/scene or game/chapter evidence.
 ## Locate and verify
 
 The harness repository is <https://github.com/zenibako/pocket-harness> (private).
-Use the harness path supplied by the user, an `OS25_HARNESS_ROOT` environment
-value, or a sibling `openfpga-os25-harness` checkout next to the Butterscotch
-checkout. Verify `AGENTS.md`, `run.py`, `experiments.py` and `cpu-lock.json` are
-present. If unavailable, locate the existing checkout or report what is missing;
+Locate the checkout in this order: the `harness` argument (a path, or `host:path`
+for a remote checkout), the `OS25_HARNESS_ROOT` environment value, then a sibling
+checkout next to the game-port checkout named `pocket-harness` or the legacy
+`openfpga-os25-harness`. If none is found, ask once for its location. Verify
+`AGENTS.md`, `run.py`, `experiments.py` and `cpu-lock.json` are present. If unavailable, locate the existing checkout or report what is missing;
 do not silently substitute the old `undertale-vm-os25-harness` baseline directory.
 Commands below run from the located harness root. Read its `AGENTS.md`,
 `README.md`, and the workflow README selected below.

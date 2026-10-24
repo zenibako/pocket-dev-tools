@@ -10,7 +10,8 @@ They contain the maintained build procedure, source provenance and fidelity limi
 
 ## Locate the isolated checkout and its inputs
 
-Use the standalone `openfpga-os25-harness` repository. Commands run from its
+Use the standalone `pocket-harness` repository (legacy checkout name
+`openfpga-os25-harness`), located as described in the skill. Commands run from its
 root. Read SETUP.md (`SETUP.md` under the harness root) to import compatible frozen inputs with
 `bootstrap.py`. The tool validates file hashes and copies sources, never changing
 the supplied game-port, OS or SDK source roots. Only this repository is mounted
@@ -45,8 +46,9 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 
 Use the separate `pico8/` adapter for Pico8Pocket, introduced in harness commit
 `7e747e7`. Read `pico8/README.md`; this workflow is independent of Butterscotch's
-`experiments.py` windows and calibration. Use the supplied/session harness path,
-`OS25_HARNESS_ROOT`, or the known sibling checkout before asking for its location.
+`experiments.py` windows and calibration. Locate the harness as described in the
+skill: the `harness` argument, `OS25_HARNESS_ROOT`, then a sibling `pocket-harness`
+or legacy `openfpga-os25-harness` checkout, asking once if none is found.
 
 If `build/platforms/os20` is absent, build once with
 `python3 pico8/cpu_platform.py build --jobs 4`. If it exists without
