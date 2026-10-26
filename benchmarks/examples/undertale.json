@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "project": "butterscotch",
+  "game": "undertale",
+  "repeat": 1,
+  "build": {
+    "id": "synthetic-example-only",
+    "source_revision": "synthetic-example-revision",
+    "compiler": null,
+    "flags": ["-O2"],
+    "elf_sha256": null,
+    "runtime_sha256": null,
+    "bitstream_sha256": null
+  },
+  "platform": {
+    "variant": "os25",
+    "clock_hz": 100000000,
+    "device_id": "synthetic-example-no-device",
+    "firmware": "0.25.0"
+  },
+  "case": {
+    "id": "undertale-standard",
+    "suite": "focused",
+    "route_version": "synthetic-example-only",
+    "mode": "speed",
+    "seed": 7,
+    "warmup_frames": 0,
+    "target_hz": 30,
+    "expected_rows": [
+      "intro, menu, naming",
+      "first room 320x240",
+      "Flowey talk 320x240",
+      "Flowey battle (640x480)"
+    ]
+  },
+  "conditions": {
+    "initial_state": "fresh",
+    "audio": "on",
+    "pacing": "uncapped",
+    "framebuffer": "runtime-default",
+    "synthetic_fixture": true
+  }
+}

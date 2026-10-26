@@ -47,6 +47,13 @@ renderer probe with renderer/GML profiling disabled. Its separate
 [results](spriteprobe/RESULTS.md) break down direct call cycles, native CPI,
 cache refills and pipeline waits; these are simulated batch timings.
 
+[Benchmark collection and transfer](benchmarks/README.md) imports existing
+Butterscotch device save-slot logs, VVVVVV host sweeps, manually transcribed
+device summaries with screenshots, and revision reports into private hashed
+bundles. It compares compatible evidence while keeping host, simulation and
+device timing separate. Result collection does not add new RTL workloads or
+device exporters.
+
 ## Run
 
 From this directory, with Python 3, Docker/Colima and host Clang installed.
