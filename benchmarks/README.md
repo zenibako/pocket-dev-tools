@@ -5,6 +5,37 @@ write an SD card, add device exporters or extend the validated RTL applications.
 It needs Python 3.10+ with no additional dependencies. Run commands from the
 `pocket-harness` root.
 
+## Preferred device packaging
+
+Prefer a dedicated benchmark core for each application. It should install beside
+the gameplay core, launch the scripted suite directly, identify the build on its
+progress/results screens and save reports to its own persistent slots. Keep
+benchmark settings, progress, results and Memories identities separate from normal
+play. Write reports after timed sampling, then show whether writing succeeded and
+instruct the user to quit through the Analogue menu to flush them to the card.
+
+A dedicated benchmark core can reuse the gameplay build's pinned OS and FPGA
+bitstream. Match compiler options, clock, renderer, memory placement and relevant
+audio/storage paths; record intentional instrumentation and workload differences.
+Share immutable assets only with verified matching hashes. If the asset folder
+also contains a shared `os.bin`, a benchmark package must not overwrite it with a
+different runtime. Benchmark-core measurements and normal-game pacing/lifecycle
+acceptance remain separate cases with their own evidence.
+
+VVVVVV already packages `zenibako.vvvvvvbench`. Pico8Pocket's variant packaging
+can install a separate test core with its own application, settings and save
+filenames. The current focused Butterscotch package adds diagnostic launch entries
+and filenames under the normal core; moving it to a dedicated benchmark core is
+still application-side packaging work. A distinct core ID alone does not create a
+durable results exporter: VVVVVV/Pico8Pocket still need that integration.
+
+Record `conditions.core_role` as `benchmark` or `gameplay`; it participates in
+comparison compatibility. Optional `deployment` metadata can retain `core_id`,
+`save_namespace` and package SHA-256 as declared packaging provenance. These
+deployment fields are preserved but do not identify the CPU/platform, and may
+differ between side-by-side baseline/candidate packages. Keep effective settings
+in `conditions` and hardware/runtime identity in `platform`/`build`.
+
 ## What currently leaves the Pocket
 
 | Project | Device evidence | Transfer |

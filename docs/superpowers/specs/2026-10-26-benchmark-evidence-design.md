@@ -25,6 +25,21 @@ This is the first working integration of the approved approach. Writing a new
 VVVVVV device exporter, PICO-8 RTL adapter, device calibration and new hardware
 runs are separate application/platform work. Imports cannot establish those gates.
 
+## Preferred device packaging
+
+The user's follow-up preference is dedicated benchmark cores, installed beside
+normal gameplay cores. Prefer isolated settings, progress, result slots and
+Memories identity, automatic suite launch, visible build identification and
+post-sampling report persistence. Reuse the gameplay build's matched pinned
+runtime/bitstream and relevant production paths. Shared immutable assets require
+matching hashes; shared OS files must not be overwritten by a different runtime.
+Keep normal gameplay pacing and lifecycle acceptance as separate required cases.
+
+Record the effective core role in `conditions.core_role` so benchmark/gameplay
+cases cannot be silently compared. Optional declared `deployment` metadata holds
+core ID/save namespace/package hash and may differ for side-by-side A/B packages.
+Existing core packaging/exporters are unchanged by this collector preference.
+
 ## Contract
 
 Version 1 metadata records project/game, source/build identity, compiler and flags,
