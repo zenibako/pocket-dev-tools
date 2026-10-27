@@ -212,6 +212,10 @@ adapter/launcher hashes, substitutions and oracle exclusions also participate.
 Application source/build IDs, ELF hashes and repeat numbers may differ. It emits descriptive deltas without inferring
 statistical significance or an overall speedup. Host times remain host times;
 simulated cycles remain simulated; device transcriptions stay unverified.
+Default software comparisons retain both inputs' source limitations in `limits`
+and their reported completion, correctness and identity status in
+`source_checks.baseline` and `.candidate`. These statuses are copied declarations,
+not fresh verification results.
 
 For profiles that require different application ELFs/toolchains, use
 `compare --mode configuration --reason "why these builds differ"` with complete

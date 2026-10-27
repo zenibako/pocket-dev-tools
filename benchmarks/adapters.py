@@ -196,7 +196,7 @@ def _summary(raw, metadata):
 
 def _harness(raw, metadata, index):
     value = json.loads(raw)
-    cases = value.get('cases')
+    cases = value.get('cases') if isinstance(value, dict) else None
     if not isinstance(cases, list) or not cases:
         raise ValueError('expected an experiments.py revision report with cases')
     if index is None:

@@ -149,14 +149,21 @@ def compare_runs(baseline, candidate):
     if left_build != right_build:
         raise ValueError('incompatible build compiler/flags/SDK/runtime context')
     rows = compare_rows(baseline, candidate)
+    limits = ['No statistical significance, independent correctness or cross-device speedup is inferred.',
+              'Profiles declare intended artifacts; they do not attest which artifacts were flashed.',
+              'Build attribution may be declared; inspect raw evidence and checks.',
+              'Runs without profiles have provisional platform identity.',
+              'Repeated imports are not independent device trials.']
+    for run in (baseline, candidate):
+        for limit in run.get('limits', []):
+            if limit not in limits:
+                limits.append(limit)
+    source_checks = {name: copy.deepcopy(run['checks'])
+                     for name, run in (('baseline', baseline), ('candidate', candidate))}
     return dict(schema_version=1, mode='software', backend=baseline['backend'], assessment='descriptive_only',
                 qualification='profile_bound' if bindings[0] else 'provisional',
                 baseline=baseline.get('run_id'), candidate=candidate.get('run_id'), rows=rows,
-                limits=['No statistical significance, independent correctness or cross-device speedup is inferred.',
-                        'Profiles declare intended artifacts; they do not attest which artifacts were flashed.',
-                        'Build attribution may be declared; inspect raw evidence and checks.',
-                        'Runs without profiles have provisional platform identity.',
-                        'Repeated imports are not independent device trials.'])
+                source_checks=source_checks, limits=limits)
 
 
 def compare_rows(baseline, candidate):

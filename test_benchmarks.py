@@ -323,6 +323,50 @@ class StoreTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'incompatible'):
                     compare_runs(base, candidate)
 
+    def test_cli_software_comparison_retains_source_limits_and_checks(self):
+        meta = metadata(rows=['frame:2400'])
+        self.meta.write_text(json.dumps(meta))
+        config = dict(game='undertale', mode='speed', window='flowey', variant='bram')
+        folders, runs = [], []
+        for checked, limit in [(True, 'physical SD not modeled'),
+                               (False, 'hardware audio not modeled')]:
+            report = dict(cases=[dict(config=config, revision=meta['build']['source_revision'],
+                negative_oracle_rejected=checked,
+                rows=[dict(oracle=[2400], cycles=100000, simulated_ms=1)])],
+                limits=[limit, 'shared source limitation'])
+            self.source.write_text(json.dumps(report))
+            folder = collect(self.source, self.meta, 'harness-revision', output=self.output)
+            folders.append(folder)
+            runs.append(load_run(folder))
+        result = subprocess.run([sys.executable, '-m', 'benchmarks', 'compare',
+            *(str(folder) for folder in folders)], text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        comparison = json.loads(result.stdout)
+        for run in runs:
+            for limit in run['limits']:
+                self.assertIn(limit, comparison['limits'])
+        self.assertEqual(comparison['limits'].count('shared source limitation'), 1)
+        self.assertEqual(comparison['source_checks'],
+                         dict(baseline=runs[0]['checks'], candidate=runs[1]['checks']))
+        self.assertEqual(comparison['source_checks']['candidate']['correctness'], 'not_checked')
+        self.assertEqual(comparison['rows'][0]['metrics']['frame_cycles']['delta'], 0)
+
+    def test_cli_rejects_nonobject_revision_reports_without_traceback_or_output(self):
+        for value in [[], 'not a report', 42, None, False]:
+            with self.subTest(value=value):
+                raw = json.dumps(value)
+                self.source.write_text(raw)
+                result = subprocess.run([sys.executable, '-m', 'benchmarks', 'import',
+                    '--format', 'harness-revision', '--source', str(self.source),
+                    '--metadata', str(self.meta), '--output', str(self.output)],
+                    text=True, capture_output=True)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn('expected an experiments.py revision report with cases', result.stderr)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertEqual(result.stdout, '')
+                self.assertFalse(self.output.exists())
+                self.assertEqual(self.source.read_text(), raw)
+
     def test_cli_import_verify_compare_and_missing_input_exit_status(self):
         command = [sys.executable, '-m', 'benchmarks']
         imported = subprocess.run(command + ['import', '--format', 'butterscotch-device',
