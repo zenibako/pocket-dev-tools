@@ -242,7 +242,9 @@ python3 -m unittest test_benchmarks test_platform_profiles test_platform_compari
 ## Remaining integrations
 
 VVVVVV/Pico8Pocket need device-side durable exporters and build manifests to
-eliminate manual transcription/attribution. PICO-8 also needs a separately
-validated os20 RTL adapter; VVVVVV needs its own target replay adapter. None of
-those are silently supplied by a result-format adapter. Existing immutable
-Butterscotch replay matrices remain unchanged.
+eliminate manual transcription/attribution. The separate
+[Pico8 adapter](../pico8/README.md) provides bounded os20/90 MHz replay; exact
+equivalence to a packaged hardware bitstream remains unproven. Its reports are
+not accepted by the Butterscotch-only `harness-revision` importer. VVVVVV still
+needs its own target replay adapter. Result-format adapters do not extend replay
+workloads; existing immutable Butterscotch replay matrices remain unchanged.

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import struct
 import subprocess
@@ -17,6 +18,15 @@ ROOT = Path(__file__).resolve().parent
 PRIVATE = ROOT / 'experiments'
 WINDOWS = {'undertale': {'flowey': 2400},
            'deltarune': {'field': 2800, 'bmenu': 3120, 'dodge': 3323}}
+
+
+def compiler_switches(value):
+    """Only explicit preprocessor experiments; never compiler file/plugin options."""
+    tokens = shlex.split(value)
+    for token in tokens:
+        if not re.fullmatch(r'-D[A-Za-z_][A-Za-z_0-9]*(?:=[A-Za-z_0-9.+-]+)?|-U[A-Za-z_][A-Za-z_0-9]*', token):
+            raise ValueError('Extra flags must be single -DNAME[=VALUE] or -UNAME tokens: ' + token)
+    return tokens
 
 
 def sha(path):
@@ -156,6 +166,7 @@ def platform():
 
 
 def create_case(args, kind):
+    extra_cflags = compiler_switches(getattr(args, 'extra_cflags', ''))
     if not re.fullmatch(r'[a-z0-9][a-z0-9-]*', args.snapshot):
         raise ValueError('Unsafe snapshot name')
     source = PRIVATE / 'snapshots' / args.snapshot
@@ -170,6 +181,8 @@ def create_case(args, kind):
                   compiler=args.compiler, snapshot_sha256=sha(source / 'snapshot.json'),
                   adapter_sources={p.name: sha(p) for p in sorted((ROOT / 'bench').iterdir()) if p.is_file() and p.suffix in ['.c', '.S', '.py']},
                   launcher_sha256=sha(Path(__file__)))
+    if extra_cflags:
+        config['extra_cflags'] = extra_cflags
     key = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()[:16]
     root = PRIVATE / 'cases' / (args.snapshot + '-' + args.game + '-' + args.window + '-' + args.mode + '-' + kind + '-' + key)
     if root.exists():
@@ -376,6 +389,7 @@ def report_cases(args):
             continue
         partner = next((r for r in records if r['build_kind']=='timing' and r['revision']==record['revision']
                         and r['native_scripts']==record['native_scripts']
+                        and r['config'].get('extra_cflags', []) == record['config'].get('extra_cflags', [])
                         and all(r['config'][f]==record['config'][f] for f in
                                 ['snapshot_sha256','mode','window','game','variant','profile','framebuffer','clock_cost','audio',
                                  'alignment','compiler'])
@@ -383,6 +397,7 @@ def report_cases(args):
         if partner:
             timing_pairs.append(dict(revision=record['revision'], mode=record['config']['mode'],
                                      window=record['config']['window'], traced_ms=record['mean_simulated_ms'],
+                                     extra_cflags=record['config'].get('extra_cflags', []),
                                      timing_ms=partner['mean_simulated_ms'],
                                      removed_instrumentation_ms=record['mean_simulated_ms']-partner['mean_simulated_ms']))
     save(args.output, dict(cases=records, timing_pairs=timing_pairs, device_references=references,
@@ -415,6 +430,7 @@ def main():
     run.add_argument('--native', choices=['profile', 'enabled', 'disabled'], default='profile')
     run.add_argument('--compiler', default='container', help='container or absolute host GCC path')
     run.add_argument('--alignment', action='store_true')
+    run.add_argument('--extra-cflags', default='', help='Ordered -DNAME[=VALUE]/-UNAME experiment switches')
     run.add_argument('--variant', choices=['sdram', 'bram'], default='bram')
     run.add_argument('--traffic', choices=['quiet', 'scanout'], default='quiet')
     run.add_argument('--framebuffer', choices=['cached', 'uncached'], default='cached')

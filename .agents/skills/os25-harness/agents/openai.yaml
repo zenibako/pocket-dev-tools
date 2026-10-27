@@ -1,0 +1,4 @@
+interface:
+  display_name: "openFPGA Replay Harness"
+  short_description: "Replay Pico8 on os20 and Butterscotch on os25"
+  default_prompt: "Use $os25-harness to verify this openFPGA change in an isolated case: select os20/90 MHz for Pico8Pocket or os25/100 MHz for Butterscotch, and report output comparisons and simulated cycle differences."

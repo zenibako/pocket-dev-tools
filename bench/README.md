@@ -11,6 +11,53 @@ the case’s firmware, checkpoints, frame cycles and output oracles; see the
 [f1d8542 Speed results](../cacheprobe/RESULTS.md) for measured refill tails and
 both function rankings.
 
+The [draw-cost comparison](2026-10-10-draw-cost-results.md) records all seven
+experiment switches at revision 0134a2f, verified frame replays, and the device
+rows, profiler and early-culling controls. These are three-frame simulated samples;
+the device measurements cover complete benchmark sections.
+
+The [transformed-bounds cull follow-up](2026-10-10-cull-reuse-results.md) compares
+base and revised cull after rebasing onto main `e83f1c7`, with fresh dodge/field
+cases. Outputs match; cull is slightly slower in both timing samples.
+
+The [remaining experiment screen](2026-10-10-remaining-experiments.md) uses fresh
+same-source controls at `bbea9be`, after rebasing onto main `e83f1c7`. Texture
+fast-hit and profiler compile-out pass both games' sampled output checks. Texture
+helps only the field sample modestly; profiler removal saves Deltarune time but
+loses script diagnostics. Neither is established as a shared default improvement.
+The subsequent `79ab365` device base/tex/base bracket records a small texture
+gain: 0.41% for the Speed route, with matching surrounding base route times.
+The device source includes newer main optimizations than the harness snapshot.
+
+The [feature-preserving profiler follow-up](2026-10-10-profiler-off-results.md)
+compares `79ab365` and `0f4afe1`, based on main `05b0eef`. Script times stays in
+the debug menu. Timing builds improve 0.51% in Undertale Speed, 0.30% in
+Deltarune Speed, and 0.79% in Deltarune Accuracy; all twelve positive and
+negative RTL controls and output comparisons pass. Device testing remains.
+
+The [rebased profiler comparison](2026-10-10-profiler-rebase-results.md) repeats
+that matrix on main 308c17c using fresh e484ccc/86140c1 snapshots, and prepares
+separate feature-preserving base/profiler Pocket entries.
+
+The [Pocket profiler result](2026-10-11-profiler-device-results.md) measures the
+rebased pair: all seven Deltarune Speed scene means improve and the route saves
+0.88%. Accuracy also improves in all seven scenes, saving 0.45% over its route.
+There is one independent pair per mode; repeatable variance remains unmeasured.
+
+The [combined main comparison](2026-10-11-combined-main-results.md) tests merged
+profiler and texture-I/O changes at dd28a6e against 6100fcc. All sampled output
+and negative checks pass; Deltarune timing means improve 2.01% in Speed and 1.09%
+in Accuracy. The adapter uses modeled file reads and the frozen standalone
+128-pixel texture packs; physical DMA and the new embedded pack layout remain
+separate validation work.
+
+The [rebased device reports](2026-10-11-rebased-device-results.md) confirm
+the embedded 64-pixel pack runs on the Pocket. The latest route is 1.46% quicker
+than the preceding unlabelled report, but battle draw counts differ; it does not
+isolate optimization gains. Accuracy saves 5.39% over its route against the
+older FAST308 profiler build, with matching rounded draw counts; dodge saves
+17.05%. That historical comparison includes all intervening merged changes.
+
 ## Export and run revisions
 
 Import the original frozen inputs using [SETUP.md](../SETUP.md), and prepare the
@@ -97,6 +144,13 @@ They do not cover every frame in those sections or every battle.
   review's description of the measured card. This extension's `port` default
   intentionally follows the request for no extra alignment. Exact card flag
   parity remains unverified.
+- `--extra-cflags='-DUT_CACHED_HELD_ROWS'` applies ordered experiment defines
+  and undefines after the port defaults. Only single `-DNAME[=VALUE]` and
+  `-UNAME` tokens are accepted; include, output, plugin and linker options
+  are rejected. The exact tokens participate in case identity and appear in
+  build metadata. For the profiler control use
+  `--extra-cflags='-UENABLE_VM_GML_PROFILER'`. These switches create independent
+  builds from the same frozen revision; they do not change source snapshots.
 
 ## Optional cost assumptions
 

@@ -1,217 +1,174 @@
 ---
 name: os25-harness
-description: Run the isolated os25 RV32/Verilator harness for Undertale and Deltarune Chapter 1. Use for revision comparison, frame replay and passive cache/pipeline profiling with retirement, CPI and overlapping stalls, without the active checkout or SD card.
+argument-hint: "[harness: path or host:path of the pocket-harness checkout]"
+description: Test Pico8Pocket on the isolated os20/90 MHz RTL adapter, or Butterscotch Undertale and Deltarune Chapter 1 on os25. Use for fixed-seed cart performance comparisons, baseline/candidate output replay, supported cache/pipeline analysis, sprite probes or hardware calibration evidence.
 ---
 
-# Testing with the os25 CPU and memory RTL
+# openFPGA replay: Pico8Pocket os20 and Butterscotch os25
 
-Use this harness for functional replay and simulated CPU/memory comparisons.
-Read the [harness README](../../../README.md)
-and, for complete frames, its [full-frame README](../../../fullframe/README.md).
-They contain the maintained build procedure, source provenance and fidelity limits.
+Use the standalone `pocket-harness` repository for functional RV32 replay
+and simulated CPU/cache/memory measurements. Desktop captures check broader
+scenes; the harness measures selected target workloads; a Pocket run checks
+actual OS, SD, display/audio and board behavior. Select **os20 at 90 MHz for
+Pico8Pocket performance** and os25 at 100 MHz for Butterscotch. Pico8Pocket's
+separate adapter matches its documented CPU configuration; exact equivalence to
+the shipped bitstream and complete hardware timing parity remain unproven.
+Do not generalize the bounded cart/scene or game/chapter evidence.
 
-## Locate the isolated checkout and its inputs
+## Locate and verify
 
-Use the standalone `openfpga-os25-harness` repository. Commands run from its
-root. Read [SETUP.md](../../../SETUP.md) to import compatible frozen inputs with
-`bootstrap.py`. The tool validates file hashes and copies sources, never changing
-the supplied game-port, OS or SDK source roots. Only this repository is mounted
-at `/work` in Docker. Use its Python launchers; avoid port deployment commands.
+The harness repository is <https://github.com/zenibako/pocket-harness> (private).
+Locate the checkout in this order: the `harness` argument (a path, or `host:path`
+for a remote checkout), the `OS25_HARNESS_ROOT` environment value, then a sibling
+checkout next to the game-port checkout named `pocket-harness` or the legacy
+`openfpga-os25-harness`. If none is found, ask once for its location. Verify
+`AGENTS.md`, `run.py`, `experiments.py` and `cpu-lock.json` are present. If unavailable, locate the existing checkout or report what is missing;
+do not silently substitute the old `undertale-vm-os25-harness` baseline directory.
+Commands below run from the located harness root. Read its `AGENTS.md`,
+`README.md`, and the workflow README selected below.
 
-`inputs/`, `captures/`, `build/`, `experiments/` and `battle_fixtures.inc` are
-private ignored state. A Git checkout alone cannot run game captures. Imports
-require fresh absent destinations and reject external links. Preserve baseline
-evidence; revision experiments keep independent baseline/candidate snapshots
-inside this repository. Keep assets, bytecode and checkpoints out of commits.
-No SD card is needed or used.
-
-Run `python3 run.py verify` before an experiment. It checks the frozen input
-hashes in `input-manifest.json`. The runner snapshot is `f1d8542`; editing a sibling port does not change replay.
-CPU generator source/submodule pins and known netlist are in `cpu-lock.json`. Do not rewrite hashes to make an unexpected mismatch pass.
-For a candidate engine change, prepare a separate, explicitly recorded private
-snapshot and retain the baseline evidence; rebuild and recapture that candidate.
-
-## Choose the workload
-
-| Workload | Command / evidence | What it exercises |
-| --- | --- | --- |
-| Synthetic and captured VM events | `python3 run.py all --jobs 4`; `build/results.json` | BC16/BC17 interpreter and value/variable handling; six captured leaf events use checked builtin transcripts |
-| Complete battle frames | `python3 fullframe/run.py run`; `build/fullframe/results.json` after `python3 fullframe/report.py` | Consecutive real game-loop iterations, all reached scripts/builtins, collision, software rendering and audio mixing |
-| Revision experiments | `python3 experiments.py`; [bench/README.md](../../../bench/README.md) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
-| Passive cache/pipeline profile | `python3 cache_profile.py --case EXACT_CASE`; [cacheprobe/README.md](../../../cacheprobe/README.md) | I/D refills, architectural retirement/CPI, dependencies, FPU/divider/store-buffer waits and branch recovery; unchanged CPU/firmware in independent copies |
-| Sprite-culling microprobe | `python3 sprite_probe.py --snapshot NAME`; [spriteprobe/README.md](../../../spriteprobe/README.md) | Pinned staged renderer probe, renderer/GML profiling disabled, 24 repeated call batches with strict oracles and passive pipeline counters |
-
-Microprobe intervals are batches of direct renderer calls, not complete game
-frames. Require both disabled-observer and corrupted-oracle controls from the
-same case. Record sprite selection, view/scale geometry, warm-up, compiler,
-alignment and snapshot revision. Do not claim a physical probe's timing was
-reproduced merely because the simulated workload passes. Device binary and
-checkpoint parity are separate evidence.
-
-The event workload excludes real rendering and mixing; its cycles cannot stand
-in for battle frame time. The original complete-frame workload covers Undertale
-Flowey frames 2400–2402 and Deltarune Chapter 1 enemy-turn frames 3323–3325 in
-`room_field2`. Both follow the benchmark route with seed 7, fresh volatile saves
-and native script acceleration disabled. Coverage is these windows, not every
-battle or the whole game.
-
-## Compare a candidate before a device run
-
-Read [bench/README.md](../../../bench/README.md) for command syntax and verified
-limits. `experiments.py snapshot` exports `src/` and `vendor/` from an explicit
-Git revision, reads only Git objects from the supplied port, and retains verified
-private assets. Use a new snapshot name; never overwrite baseline evidence.
-`run --kind both` produces separately labeled traced correctness and untraced
-timing cases. Docker mounts only one independently copied case at a time.
-
-Run matching windows and modes for baseline and candidate, then `compare` their
-printed CASE paths. Require identical raw RGB555, raw PCM and pair counts for a
-behavior-preserving change. State pointers are deliberately ignored across
-builds. A same-build QEMU/RTL pass cannot establish unchanged rendering/mixing.
-Differences exit 2 and retain both PPMs; investigate rather than recapture over
-the baseline. `report` verifies source/ELF/artifact hashes and labels build kind,
-compiler, native script setting, costs and oracle exclusions.
-
-Supported revision windows: Undertale `flowey` 2400–2402; Deltarune `field`
-2800–2802, `bmenu` 3120–3122 (menu/attack section), `dodge` 3323–3325.
-`--mode speed` uses `--bench-smooth`; Accuracy uses `--bench`.
-Port profile enables native scripts by default; legacy disables them.
-`--native` is explicit: comparisons must match its setting. The port profile has
-no global `OF_PC` or extra alignment, but substitutes SDK declarations/kernel
-services. Do not describe that as full device build/ABI parity. Card compiler
-version and measured alignment remain unknown; see the recorded SDK flag conflict.
-
-Optional uncached framebuffer, 1,680-cycle clock charge and realtime audio have
-passed both supplied device-revision replays. They remain cost assumptions.
-Realtime QEMU PCM/count cannot match cycle-dependent RTL consumption and those
-fields are explicitly excluded; cross-build comparison refuses realtime cases.
-Use fixed audio for regression checks, and report underruns as simulated.
-Timing ELFs omit per-opcode/event hooks and in-loop PCM hashing; pair a traced
-case with timing evidence when checking audio correctness.
-
-## Attribute cache costs
-
-Use the exact experiment case path and check its configuration before profiling;
-revision/window/build-kind names alone do not distinguish memory placement,
-compiler or native settings. `cache_profile.py` requires an existing successful
-replay for the selected traffic. It creates a new private measurement copy and
-rejects any changed frame cycles/oracles. `--disabled` checks the runtime switch;
-`--negative` checks bad-state rejection. Keep original cases and old observer
-versions as evidence. No CPU parameter changes are made by this observer.
-
-Read the [counter definitions](../../../cacheprobe/README.md) before interpreting
-a result. I-cache full transaction latency includes speculative/prefetch
-traffic and overlapping responses; its sum is not frame stall. The fetch hold
-alone misses REDO/flush/retry cost. Use the union of fetch hold and the passive
-shadow of the pinned CPU's miss-recovery waiting event, separately from the D
-refill waiter and I/D overlap. Instructions can commit during a block; even the
-no-commit subset is observational rather than uniquely causal lost cycles.
-Rank refill line bases and blocked/missing PCs separately, leaving ELF padding
-unattributed. Check both traced and timing builds; tracing changes code/layout.
-
-`cache_report.py` verifies/reanalyses raw CSV, ELF, simulator, copied observer,
-source replay and capture evidence before generating the named baseline study.
-The [f1d8542 results](../../../cacheprobe/RESULTS.md) show the scope and limitations;
-frame-wide shares do not settle the isolated device sprite-culling hypothesis.
-Any free/unlimited-cache or ordering experiment needs its own recorded changes
-and verified evidence; do not infer its speedup from summed bus latency.
-
-Observer v3 adds canonical ctrl5 CommitService retirement and CPI. Keep that
-separate from the older ctrl4 commit-decision count. Inspect operand dependencies,
-store-buffer waits, shared integer/FP divider freezes, FP reservations/conversions,
-uncached I/O and branch recovery before attributing time to a cache. Raw masks
-preserve overlaps; a disjoint reporting priority is not a causal speedup estimate.
-`pipeline_report.py` verifies all eight windows/builds and writes separate output;
-see [pipeline results](../../../cacheprobe/PIPELINE-RESULTS.md). Timing still has
-renderer/GML profiling, including note formatting, so it is not profiler-free.
-Full-frame CPI does not determine an isolated device path's CPI.
-
-## Run or rebuild complete frames
-
-With the prepared private state already present:
+For packaged platform identities, device-evidence collection and software,
+controlled platform or whole-configuration comparisons, use the canonical
+[pocket-benchmarking skill](../pocket-benchmarking/SKILL.md). Its collector
+adapters and profile bindings do not extend the replay workloads below.
 
 ```sh
 python3 run.py verify
-python3 fullframe/run.py run --game deltarune --variant bram --traffic scanout
 ```
 
-Omit `--game` to run both games. `--variant sdram` executes the interpreter in
-SDRAM; `--variant bram` must place `executeLoop` at `0x4000` in application BRAM.
-The ELF placement check rejects a BRAM build that silently kept the loop in
-SDRAM. `--traffic quiet` removes diagnostic display contention; `scanout` adds it.
+A fresh clone needs private inputs; read `SETUP.md` and use `bootstrap.py` to
+import compatible copies. Source dependencies alone do not provide game assets,
+musl archives or process checkpoints. Frozen input hashes and `cpu-lock.json`
+are intentional. A sibling port edit does not alter the frozen `f1d8542` runner.
 
-After changing full-frame firmware, for each affected variant:
+## Choose the smallest relevant workload
 
-```sh
-python3 fullframe/run.py build --variant bram
-python3 fullframe/run.py capture --variant bram
-python3 fullframe/run.py prepare --variant bram
-python3 fullframe/run.py run --variant bram --traffic quiet
-python3 fullframe/run.py run --variant bram --traffic scanout
-python3 fullframe/run.py run --variant bram --negative
-```
+| Need | Launcher | Read under the harness root |
+| --- | --- | --- |
+| Pico8Pocket runtime, fixed-seed cart/scene A/B | `pico8/cpu_platform.py`, `pico8/run.py` with explicit `--platform os20` | `pico8/README.md` |
+| Butterscotch VM leaf events / synthetic interpreter checks | `run.py` | `README.md` |
+| Original complete-frame matrix | `fullframe/run.py`, `fullframe/report.py` | `fullframe/README.md` |
+| A current port revision or optimization | `experiments.py snapshot/run/compare/report` | `bench/README.md` |
+| Cache refills, retirement/CPI, FPU or dependency waits | `cache_profile.py` on an exact successful case | `cacheprobe/README.md` |
+| Direct sprite-culling call breakdown | `sprite_probe.py`, observer controls, `sprite_report.py` | `spriteprobe/README.md` |
+| Same-ELF hardware/RTL calibration or saved device log | `calibration.py` | `calibration/README.md` |
 
-Repeat with `sdram` when comparing placement. If the simulator generator or RTL
-changes, run `python3 fullframe/run.py rtl --jobs 4` before replay. New toolchain
-setup and the full matrix sequence are in the full-frame README. The base image
-is `undertale-vm-os25-harness:local`; `fullframe/run.py toolchain` adds QEMU in
-`undertale-vm-os25-frames:local`. The launchers use `build/docker-config` to avoid
-the noninteractive Docker credential-helper problem. Their default daemon is
-Colima; `HARNESS_DOCKER_HOST` overrides it. This is separate from the SDK's
-ordinary device-build container and `USE_SDK_CONTAINER` setting.
+Use [references/workflows.md](references/workflows.md) for detailed commands,
+coverage, controls and timing limitations for the selected workflow. CLI `--help`
+and the maintained README take precedence over remembered command syntax.
 
-## Verify the result before interpreting cycles
+For a Butterscotch port change, snapshot explicit baseline and candidate Git revisions under
+new names; never build a candidate by changing `inputs/`. Export reads Git objects,
+so uncommitted work needs an explicitly recorded supported source patch or a
+committed revision. Preserve the original baseline and failed cases. Compare
+matching game/window, mode, compiler/alignment, native setting, placement,
+framebuffer, audio, clock-cost and build kind. Use both games for shared VM or
+renderer changes when the affected paths are covered.
 
-The same RV32 binary runs under QEMU to capture and under Verilator to replay.
-Two captures must have identical RAM/stack checkpoints and frame oracles.
-RTL replay checks game state, RGB555 pixel and PCM checksums, sample-pair counts,
-opcode/event counts and VM traces, clean VM stacks, and SDRAM/AXI delivery.
-Use the reference PPMs under `build/fullframe/<game>/<variant>/repeat-0/` when a
-visual check helps explain a mismatch.
+Supported Butterscotch windows are Undertale `flowey` 2400–2402 and Deltarune Chapter 1
+`field` 2800–2802, `bmenu` 3120–3122, `dodge` 3323–3325. These samples are not
+whole-game coverage. `experiments.py run` defaults to **Deltarune/dodge only**;
+`--kind both` means traced and timing ELFs, not both games. Specify
+`--game undertale --window flowey` and `--game deltarune --window WINDOW`
+individually for each baseline/candidate. Leaf-event cycles cannot substitute
+for full-frame cycles.
 
-Run `python3 fullframe/report.py` after all requested configurations. Its complete
-matrix requires both games × SDRAM/BRAM × quiet/scanout: eight configurations,
-24 frame rows, and four deliberately corrupted state oracles rejected. A partial
-run is useful but does not satisfy that aggregate report. Hash changes, timeout,
-trap or oracle failure require investigation; preserve the failing log.
+## Pico8Pocket platform and seed selection
 
-State hashes include RV32 pointers and instance layout: require equality between
-QEMU and RTL for the same binary/checkpoint, not between different candidate
-binaries. For a behavior-preserving optimization, independently compare baseline
-and candidate pixels, PCM and relevant game values on the same route and seed.
-Recapturing a candidate reference alone does not prove unchanged behavior.
+Read `pico8/README.md` and [the Pico8 workflow](references/workflows.md#pico8pocket-os20-performance).
+Verify the existing platform with `python3 pico8/cpu_platform.py verify`; build
+once if `build/platforms/os20` is absent. Preserve incomplete builds and inspect
+logs before the documented wrapper-only `rtl` resume. Never overwrite completed
+platform evidence or frozen inputs.
 
-## Interpret timing and hardware constraints
+Create fresh baseline/candidate cases with explicit
+`--platform os20 --hash-seed 0x5eed1234 --measure-frames 12`. Both CLI and Python
+API defaults remain os25, so omitting the platform repeats the old mismatch.
+Require `case.json` to record `platform_name=os20`, `clock_hz=90000000` and CPU/
+simulator provenance; native/QEMU must confirm `PICOSEED 1592594996`, and RTL
+must confirm `PICOCPU 90000000` from MMIO. `luai_makeseed()` alone does not fix
+the final address-mixed Lua seed. Production seeding remains unchanged.
 
-Call these results **simulated**. The copied production os25 CPU has a 100 MHz
-clock, 32 KiB I-cache, 128 KiB D-cache and single-precision FPU, with the production
-fabric, Pocket SDRAM controller/arbiter and registered BRAM model. Timing uses
-MMIO `0x40000004`; cycle CSRs trap in this configuration. That MMIO use is verified
-in the harness, not a newly verified timing API for the deployed v0.7 runtime.
+Use matching setup/input, frame window, audio model, compiler/alignment and BRAM
+placement. Record recreated scenes separately from actual save imports. Require
+repeated native/QEMU output, quiet/scanout RTL output and memory oracles, and a
+corrupted-pixel negative control. Compare raw pixels, palettes, PCM and pair
+counts independently before claiming byte identity. Pointer-bearing state hashes
+only compare the same ELF/checkpoint.
+Require `capture.json`'s `native_output_equal=true` as well as `passed=true`.
+Standard runner commands export channel hashes, not raw channels or a cross-case
+comparison. Use a separately reviewed collector for byte comparisons, or report
+hash agreement with byte identity unverified.
 
-Original full-frame timing includes opcode tracing and the harness
-platform/allocator;
-validation and UART output are outside the timed loop. The first frame has cold
-caches. Compare matching game windows, seeds, binaries and traffic settings;
-`simulated_ms` converts cycles assuming 100 MHz. Do not label these values as
-measured Pocket FPS or compare them directly with device benchmark rows.
+os20 timing uses the recorded 90 MHz clock. Preserve historical os25 cases at
+their original 100 MHz; clock rescaling cannot reproduce the different CPU and
+cache configuration. Existing single-lane os25 cache/pipeline observers are not
+validated for dual-issue os20. Resolve the production runtime from Pico8Pocket's
+`scripts/fetch-deps.sh`; keep its bitstream, OS and loader as a matched release
+set. Recheck source-profile agreement on runtime upgrades. Fitted-bitstream
+equivalence, device compiler/libc/layout, production allocator, presentation,
+adaptive skipping and OS/SD/live audio scheduling still require separate
+evidence. Butterscotch's os25 calibration
+does not calibrate Pico8Pocket os20 or establish physical Pocket FPS.
 
-The original harness bounds its heap to about 51 MiB and the SDK application map,
-using
-its own splitting/coalescing allocator. Framebuffers are harness-allocated cached
-SDRAM, so framebuffer load/store costs do not reproduce the deployed runtime's
-uncached framebuffer alias. Clock, input and audio queue are deterministic models;
-real mixed PCM is checked. File reads use an uncached CRAM0 mailbox at `0x30000000`
-after CPU ownership is enabled through `0x4e000000`, serving only private assets.
-Physical SD latency, production malloc behavior, kernel timing, hardware audio,
-interrupts, GPU execution, display scheduling, synthesis fit and board behavior
-are outside this test. Scanout is diagnostic traffic, not the display controller.
+## Accept evidence before interpreting performance
 
-Revision experiment timing and default/optional service models are documented
-separately in the bench README. Their three cold-cache frames and substituted
-services do not directly predict device benchmark section means. Preserve the
-original fullframe evidence as the reproduction of the old numerical baseline.
+- Require repeat QEMU captures, same-binary RTL output/memory oracles and the
+  workflow's negative controls. For an observer, require disabled-observer
+  equality; preserve CPU parameters and exact original frame/batch cycles.
+- For behavior-preserving changes, compare baseline/candidate raw pixels, PCM
+  and pair counts independently. Same-build QEMU/RTL agreement alone cannot
+  detect a regression copied into a new reference. Pointer-bearing state hashes
+  are only comparable for the same ELF/checkpoint. Use fixed audio for regression
+  checks; realtime audio has documented oracle exclusions.
+- Pair traced correctness evidence with timing builds. Full-frame timing removes
+  VM hooks but can retain renderer/GML profiling; the sprite/calibration adapters
+  disable it. Record the actual flags rather than calling every timing ELF
+  profiler-free.
+- Regenerate reports with their validating launchers. Retain exact CASE paths,
+  revision, ELF/source hashes, configuration, counter definitions and failures.
+  A hash mismatch or changed oracle requires investigation, not a rewritten pin.
 
-For claims about actual speed, framebuffer alias costs, audio underruns or card
-behavior, use the game port’s device benchmark after relevant replay/desktop
-checks pass. Keep simulated and device evidence distinct.
+## Calibration saves and timing claims
+
+Prepare the Butterscotch calibration hardware bundle only after reference, negative, observer on/off and
+scanout controls pass. Keep the exact ELF for the device run. Calibration saves
+use the game's NUL-terminated save-slot method with a separate slot-11 filename,
+`calibration_log.sav`. The user waits for `CALSAVE saved` and `CALIBRATION PASS`,
+then exits through the Analogue menu to flush the save to SD. Compare the raw
+`.sav` locally with `calibration.py compare`; record the actual core/OS identity.
+A matching embedded build ID is not an independent hash of the loaded bitstream.
+
+`calibration/DEVICE-RESULTS.md` records the verified 2026-10-10 v0.9 calibration:
+all 72 intervals/pixels passed and workload means agreed within 3.15% of quiet
+RTL. The outside-view call agreed within 0.13%. This controlled generated-sprite
+run does not explain the older ~19.9 microsecond v0.7 game probe or establish
+full-frame parity. Do not apply a universal calibration multiplier.
+
+Call RTL timings **simulated**, using each case's recorded clock: 90 MHz for
+Pico8Pocket os20, 100 MHz for Butterscotch os25. Refill latency is not CPU stall,
+overlapping masks cannot be summed, and a disjoint presentation priority is not
+recoverable speedup. Supported os25 architectural retirement/CPI uses observer
+v3 CommitService; do not substitute the older commit-decision count or apply
+single-lane counters to dual-issue os20.
+
+Account for the chosen service model: cached versus uncached framebuffer,
+fixed audio-pair counts versus modeled realtime consumption, substituted allocator
+and OS services, cold caches, instrumentation and diagnostic scanout. Actual
+SD latency, kernel interrupts, audio/display scheduling, GPU execution, synthesis
+fit and board behavior need separate tests. Compiler/layout parity with a device
+build must be established for that exact build, not inferred from the core name.
+
+## Isolation and delivery
+
+Use Python launchers; Docker mounts only the harness or its independently copied
+case. Keep the game checkout, SDK, OS sources and SD card out of those mounts.
+Harness runs never invoke the port's device-build, copy or deployment targets.
+An authorized port implementation happens separately; harness testing reads its
+revision and writes only to private harness cases.
+
+Keep game assets, bytecode, captures, `inputs/`, `build/` and `experiments/`
+private and ignored. Preserve baselines and old reports. Report the verified
+scope, cycle differences, output comparisons and remaining device questions.
+Preparing an ELF/overlay is separate from installation; a harness task does not
+itself authorize copying to SD or deploying a core.

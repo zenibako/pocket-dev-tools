@@ -31,9 +31,9 @@ def prepare(game,variant):
  save(d/'prepared.json',dict(image_sha256=sha(d/'program.bin'),stack_sha256=sha(d/'stack.bin'),bram_sha256=sha(d/'firmware.mif'),capture_sha256=sha(d/'capture.json'),expected_address=address,heap_info=struct.unpack('<3I',(d/'repeat-0/checkpoint-info.bin').read_bytes()),execute_loop_address=syms['executeLoop'],elf_sha256=sha(d/'program.elf')))
  print('Prepared',game,variant,len(image),'bytes, heap cursor',hex(0x10400000+len(image)),flush=True)
 
-def rtl(jobs):
- d=BUILD/'rtl';d.mkdir(exist_ok=True)
- leaf=ROOT/'build/rtl';source=(leaf/'main.cpp').read_text()
+def rtl(jobs, dest=None, leaf=None, cpu=None):
+ d=dest or BUILD/'rtl';d.mkdir(exist_ok=True)
+ leaf=leaf or ROOT/'build/rtl';cpu=cpu or harness.CPU;source=(leaf/'main.cpp').read_text()
  a=source.index('static const uint32_t SDRAM_OS_WORD');b=source.index('// ========================================================================\n// Main',a)
  loader=r'''static const uint32_t SDRAM_OS_WORD = 0x10400000u/4u;
 static std::vector<uint32_t> g_image;
@@ -88,7 +88,7 @@ static void service_files() {
  (d/'main.cpp').write_text(source)
  # Reuse the verified Pocket wrapper, controller twin and CPU, in a separate build directory.
  test=harness.OS/'src/fpga/test';mk=(leaf/'test.mk').read_text();(d/'test.mk').write_text(mk)
- command=['make','-f',d/'test.mk',d/'obj/Vtb_system',f'SYSTEM_SDRAM_DIR={d}/obj',f'SYSTEM_SDRAM_CPP={d}/main.cpp',f'VEXII_MISTER={harness.CPU}',f'VERILATOR=verilator -j {jobs} '+ ' '.join('+define+'+x for x in json.loads((leaf/'rtl.json').read_text())['definitions'])]
+ command=['make','-f',d/'test.mk',d/'obj/Vtb_system',f'SYSTEM_SDRAM_DIR={d}/obj',f'SYSTEM_SDRAM_CPP={d}/main.cpp',f'VEXII_MISTER={cpu}',f'VERILATOR=verilator -j {jobs} '+ ' '.join('+define+'+x for x in json.loads((leaf/'rtl.json').read_text())['definitions'])]
  harness.run(command,d/'compile.log',cwd=test)
  save(d/'rtl.json',dict(simulator_sha256=sha(d/'obj/Vtb_system'),source_sha256=sha(d/'main.cpp'),leaf_rtl_sha256=sha(leaf/'rtl.json'),generator_sha256=sha(ROOT/'fullframe/rtl.py')))
 

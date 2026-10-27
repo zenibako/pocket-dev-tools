@@ -18,8 +18,10 @@ best meets a new port's performance and correctness requirements.
 Representing a cell does not establish that its bitstream builds, meets timing,
 or works on hardware. Profiles declare intended artifacts. They do not attest
 what was flashed. The collector reads files and writes private Mac-side records;
-it does not build a core, deploy it or write to the card. The current simulation
-adapter remains the pinned os25/100 MHz Butterscotch model.
+it does not build a core, deploy it or write to the card. The `harness-revision`
+importer remains limited to the pinned os25/100 MHz Butterscotch report format.
+The separate [Pico8 replay adapter](../pico8/README.md) can use os20/90 MHz;
+profile registration does not establish equivalence to its simulated platform.
 
 ## Create a profile from actual artifacts
 

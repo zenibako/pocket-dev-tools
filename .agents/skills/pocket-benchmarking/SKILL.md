@@ -81,8 +81,11 @@ Compare matching domains/configurations and sampling denominators. Keep profile
 and timing evidence distinct; overlapping counters and counterfactual modes are
 not additive. Use paired device trials for variability, plus project correctness
 and gameplay/launch/save/audio/sleep checks. The validated RTL applications remain
-Butterscotch Undertale/Deltarune on the pinned os25 model; current os20 consumers
-need separate platform/workload validation.
+Butterscotch Undertale/Deltarune on the pinned os25 model. The separate Pico8
+adapter can select bounded os20/90 MHz replay; read `os25-harness` and
+`pico8/README.md` for its exact provenance and limits. VVVVVV replay remains
+outside those workloads. The `harness-revision` evidence importer still accepts
+only its original Butterscotch os25 report format.
 
 ## Check coverage and select a comparison
 
@@ -122,7 +125,7 @@ insufficient evidence is a valid decision. Leave irrelevant profiles unselected.
 Preserve all disclosed artifact differences and source limitations. Keep literal
 units, without 90/100 scaling. Multiple varying factors form a combined
 experiment; they do not isolate a clock or CPU effect. Profiles and coverage do
-not extend the pinned os25/100 MHz simulation model.
+not extend any replay model. Use the workload-specific replay guides separately.
 
 For consumer discovery, stale guidance and remaining integrations, read the
 [dated project audit](../../../docs/skills/2026-10-27-pocket-benchmarking-audit.md).

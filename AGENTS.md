@@ -2,7 +2,8 @@
 
 Read README.md, SETUP.md and the relevant fullframe/README.md before changes.
 The initial supported workload is Butterscotch, running both Undertale and
-Deltarune Chapter 1. Do not imply other cores are validated.
+Deltarune Chapter 1. The separate bounded Pico8 runtime adapter is documented
+in `pico8/README.md`; do not imply generic core support or device equivalence.
 
 Work only in this repository. Never modify the game-port active checkout,
 original SDK/OS roots or an SD card. Use the Python launchers, which mount only

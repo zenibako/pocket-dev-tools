@@ -1,0 +1,11 @@
+{
+    "instance": {
+        "magic": "APF_VER_1",
+        "data_slots": [
+            { "id": 1, "filename": "os09.bin" },
+            { "id": 2, "filename": "os25_calibration.ini" },
+            { "id": 3, "filename": "os25_calibration.elf" },
+            { "id": 11, "filename": "calibration_log.sav" }
+        ]
+    }
+}

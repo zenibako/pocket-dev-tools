@@ -5,7 +5,36 @@ run or hardware qualification. The initial audit did not modify consumers. The
 subsequent user-authorized wiring and repairs are recorded below. The original
 findings and revision table later in this document describe the pre-repair state.
 
-## Consumer wiring and repairs completed
+## Current pull-request integration
+
+The prepared PR branches reconcile this audit with the active repositories and
+the newer harness main (`18a56d1`). Butterscotch's runner, Pocket tools/plugin and
+release pipeline now share `zenibako/butterscotch-pocket`; the old installer
+repository is archived and is not a PR target. VVVVVV's active repository is
+`zenibako/VVVVVV-pocket`. Both VVVVVV checkouts represent that one repository.
+
+The active consumer PRs use one physical `.agents/skills` collection with a
+same-repository `.claude/skills` root bridge. Existing Butterscotch and Pico8
+release bodies remain in that physical collection; native skill bodies are
+relocated intact so both static catalogs expose them. Each local benchmark skill
+is a thin router to the separately established harness, with project-specific
+guidance for profile shortlists, evidence and all three comparison modes.
+Unselected matrix cells are not mandatory support targets. Consumer integration
+requires the harness's new profile/collector/configuration-comparison features.
+
+The newer harness main supplies a bounded Pico8 os20/90 MHz runtime adapter and
+calibration work in addition to Butterscotch os25 replay. See the current
+[Pico8 workflow](../../pico8/README.md) and
+[replay skill](../../.agents/skills/os25-harness/SKILL.md) for their provenance and
+limits. The collector's `harness-revision` format remains Butterscotch-only;
+Pico8/VVVVVV device summaries still require original screenshots. No shared
+collection feature creates a device exporter or hardware-equivalence claim.
+
+The following completed-local-wiring section and original audit are historical
+records of those earlier checkouts, commits and layouts. Their relative sibling
+paths identify local audit observations, not dependencies of a fresh clone.
+
+## Historical local consumer wiring and repairs
 
 The user subsequently requested wiring the skill into the existing projects and
 fixing stale skills. Each consumer now has a small physical local
@@ -150,30 +179,30 @@ existing gates. Collection never grants deployment, pin changes or publication.
 
 ## Concrete evidence and pitfalls
 
-**Butterscotch.** The [performance skill](../../../Butterscotch/.claude/skills/butterscotch-pocket-perf/SKILL.md)
-and its [focused reference](../../../Butterscotch/.claude/skills/butterscotch-pocket-perf/references/focused-benchmarks.md)
+**Butterscotch.** The performance skill (local audit path: `../../../Butterscotch/.claude/skills/butterscotch-pocket-perf/SKILL.md`)
+and its focused reference (local audit path: `../../../Butterscotch/.claude/skills/butterscotch-pocket-perf/references/focused-benchmarks.md`)
 already select concrete routes and require report identity/sample checks.
-The [focused diagnostic guide](../../../Butterscotch/src/openfpga/docs/2026-10-18-focused-pocket-benchmark.md)
+The focused diagnostic guide (local audit path: `../../../Butterscotch/src/openfpga/docs/2026-10-18-focused-pocket-benchmark.md`)
 documents the five modes and Quit-to-flush procedure. Its saved report uses
 `FOCUS PASS/FAIL` plus the end marker; post-dump UI success text need not appear
 in the file. The new skill routes these logs into the collector without taking
 over workload creation or correctness verification.
 
-**Installer.** [Current root guidance](../../../butterscotch-pocket/CLAUDE.md)
-and the [approved repurposing design](../../../butterscotch-pocket/docs/superpowers/specs/2026-10-18-install-entrypoint-design.md)
-override its [historical build skill](../../../butterscotch-pocket/.claude/skills/undertale-pocket-build/SKILL.md).
-The [release guide](../../../butterscotch-pocket/docs/BUILD.md) excludes benchmark
+**Installer.** Current root guidance (local audit path: `../../../butterscotch-pocket/CLAUDE.md`)
+and the approved repurposing design (local audit path: `../../../butterscotch-pocket/docs/superpowers/specs/2026-10-18-install-entrypoint-design.md`)
+override its historical build skill (local audit path: `../../../butterscotch-pocket/.claude/skills/undertale-pocket-build/SKILL.md`).
+The release guide (local audit path: `../../../butterscotch-pocket/docs/BUILD.md`) excludes benchmark
 instances, purchased inputs, saves, logs and device metadata from public packages.
 Do not import private run bundles into a release allowlist.
 
-**Pico8Pocket.** Compare the [performance skill](../../../pico8pocket/.claude/skills/pico8pocket-performance/SKILL.md)
-with [current architecture](../../../pico8pocket/docs/architecture.md) before
-selecting a timing model. The [variant script](../../../pico8pocket/scripts/variant-core.sh)
+**Pico8Pocket.** Compare the performance skill (local audit path: `../../../pico8pocket/.claude/skills/pico8pocket-performance/SKILL.md`)
+with current architecture (local audit path: `../../../pico8pocket/docs/architecture.md`) before
+selecting a timing model. The variant script (local audit path: `../../../pico8pocket/scripts/variant-core.sh`)
 supports isolated A/B filenames while sharing OS/pad assets; a different shared
 `os.bin` must not overwrite the other core's runtime. Hashes and effective settings
 belong in metadata; package/core IDs alone are not hardware identity.
 
-**VVVVVV.** The [performance checkout guide](../../../vvvvvv-perf/openfpga/README.md)
+**VVVVVV.** The performance checkout guide (local audit path: `../../../vvvvvv-perf/openfpga/README.md`)
 contains focused/exhaustive presets; inspect the selected revision rather than
 assuming the plugin checkout contains all performance work. `SWEEP_VIEW` in
 `openfpga/src/pocket_final_sweep.cpp` is guarded by `OF_PC`; `SWEEP_RESULT` comes
@@ -181,9 +210,9 @@ from `openfpga/tests/final_sweep_smoke.cpp`. Both are host microseconds.
 `openfpga/sdl3/savefs.c` keeps benchmark writes volatile. A summary peak can span
 all viewports and need not occur in the worst-average viewport.
 
-**Runtime.** [os20.cfg](../../../openfpgaOS/src/fpga/vendor/vexriscv/configs/os20.cfg)
-and [os25.cfg](../../../openfpgaOS/src/fpga/vendor/vexriscv/configs/os25.cfg) are
-different CPU/cache/clock configurations. [OS instructions](../../../openfpgaOS/CLAUDE.md)
+**Runtime.** os20.cfg (local audit path: `../../../openfpgaOS/src/fpga/vendor/vexriscv/configs/os20.cfg`)
+and os25.cfg (local audit path: `../../../openfpgaOS/src/fpga/vendor/vexriscv/configs/os25.cfg`) are
+different CPU/cache/clock configurations. OS instructions (local audit path: `../../../openfpgaOS/CLAUDE.md`)
 also separate the default RTL regression set from GPU/scanout/system tests.
 Neither importing a report nor replaying frames establishes fit, timing closure,
 physical storage, presentation, audio or board behavior.

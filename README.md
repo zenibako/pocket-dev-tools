@@ -1,4 +1,36 @@
-# Undertale / Deltarune Chapter 1 os25 VM harness
+# pocket-harness: openFPGA os25/os20 replay harness
+
+Repository: <https://github.com/zenibako/pocket-harness> (private).
+
+A cycle-level simulator for openfpgaOS applications: the os25 (and Pico8Pocket's
+os20) VexiiRiscv CPU with the Pocket cache, fabric, SDRAM and BRAM model under
+Verilator. Every timing it reports is **simulated** at the case's recorded clock
+(100 MHz os25, 90 MHz os20). Hardware behaviour needs a separate Pocket run; see
+[calibration/README.md](calibration/README.md).
+
+## Repository layout
+
+| Part | Where |
+| --- | --- |
+| Generic harness: CPU lock, launchers, Docker, cache/pipeline observers, revision experiments, complete-frame replay | root launchers (`run.py`, `harness.py`, `experiments.py`, `bootstrap.py`, `cache_profile.py`, `pipeline_*.py`, `start.S`, `link.ld`, `cpu-lock.json`), `bench/`, `cacheprobe/`, `fullframe/` |
+| Butterscotch workload (Undertale, Deltarune Chapter 1) | root fixtures (`battle_*`, `workloads.c`, `runtime.c`, `services.c`, `capture.py`, `input-manifest.json`), `capture/`, `spriteprobe/`, `calibration/` |
+| Pico8Pocket adapter (os20) | `pico8/` |
+
+New game or platform adapters go under `adapters/<name>/` with their own README,
+workload and oracles; the first planned one is `adapters/vvvvvv`. Butterscotch and
+`pico8/` stay where they are so existing cases and reports keep resolving.
+
+### Private inputs
+
+Never commit game data, bytecode, carts, traces, captures or experiment output.
+They live under the ignored `inputs/`, `experiments/`, `captures/` and `build/`
+directories. `input-manifest.json` holds only paths and hashes of the expected
+inputs, not their contents.
+
+For how to run a workload, read [AGENTS.md](AGENTS.md) and the
+[os25-harness skill](.agents/skills/os25-harness/SKILL.md).
+
+## Butterscotch os25 VM harness
 
 This standalone repository tests the os25 VexiiRiscv CPU and Pocket memory
 RTL with Verilator. Its first workload is the Butterscotch interpreter running
@@ -9,6 +41,13 @@ The CPU/cache/fabric/SDRAM/BRAM infrastructure can support other os25 applicatio
 The current VM fixtures, capture hooks and frame platform are Butterscotch adapters;
 adding another core requires its own workload and oracles. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for that boundary.
+
+An experimental [Pico8Pocket runtime adapter](pico8/README.md) runs supplied
+cartridges through native smoke tests, repeated RV32 checkpoints and same-ELF
+os25 frame replay, and a separately pinned os20/90 MHz platform for new cases.
+Pico8Pocket ships os20. Historical os25 results describe the runtime on that
+platform; the os20 adapter matches its documented configuration, with exact
+shipped-bitstream source equivalence and physical performance still unproven.
 
 ## Setup and private inputs
 
@@ -121,6 +160,11 @@ Docker daemon with `HARNESS_DOCKER_HOST`, for example
 The public-image Docker configuration is private to `build/docker-config`.
 
 ## Coverage and oracles
+
+For matching hardware/RTL calibration, see [calibration/README.md](calibration/README.md).
+It prepares one SDK application ELF for both environments, with arithmetic,
+memory/cache and staged sprite probes. Hardware execution is a separate step;
+preparation writes only a new private harness case and never deploys to the card.
 
 Both BC16 (Undertale) and BC17 (Deltarune Chapter 1) are compiled into the same
 image. The bytecode fixtures use real `VM_executeCode` and production value,

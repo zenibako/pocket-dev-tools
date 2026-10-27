@@ -103,16 +103,22 @@ def firmware():
                                              text=True, check=True).stdout.splitlines()[0]))
 
 
-def rtl(jobs):
-    dest = BUILD / 'rtl'
+def rtl(jobs, variant='os25', dest=None, cpu=None):
+    if variant not in ('os20', 'os25'):
+        raise ValueError('Unsupported Pocket platform')
+    if variant == 'os20' and cpu is None:
+        raise ValueError('os20 requires its separately pinned CPU netlist')
+    dest = dest or BUILD / 'rtl'
+    cpu = cpu or CPU
+    mhz = 90 if variant == 'os20' else 100
     dest.mkdir(exist_ok=True)
     target = OS / 'src/fpga/targets/pocket'
     test = OS / 'src/fpga/test'
     probe = '.PHONY: harness-defs\nharness-defs:\n\t@echo $(DEFS)\n'
     defs = subprocess.run(['make', '-s', '--no-print-directory', '-f', 'Makefile', '-f', '-',
-                          'VARIANT=os25', 'harness-defs'], input=probe, cwd=target,
+                          'VARIANT=' + variant, 'harness-defs'], input=probe, cwd=target,
                           capture_output=True, text=True, check=True).stdout.strip().split()
-    config = dict(variant=dict(target='pocket', variant='os25', defs=' '.join(defs)))
+    config = dict(variant=dict(target='pocket', variant=variant, defs=' '.join(defs)))
     memory = sdram_parameters(config, dest)
     pre = (dest / 'preprocessed-pocket.v').read_text()
     block = re.search(r'gpu_core\s*#\((.*?)\)\s*gpu\s*\(', pre, re.S).group(1)
@@ -128,10 +134,16 @@ def rtl(jobs):
     assert count == 1
     top = once(top, '    .phy_ncs(phy_ncs),', '')
     top = once(top, 'gpu_core gpu (', 'gpu_core #(' + ','.join(f'.{k}({v})' for k,v in gpu.items()) + ') gpu (')
+    if mhz != 100:
+        top = once(top, 'axi_periph_slave periph (', f"axi_periph_slave #(.CLK_HZ(32'd{mhz * 1000000})) periph (")
     (dest / 'top.v').write_text(top)
     twin = pocket_sdram_twin(OS, dest)
     cpp = (test / 'tb_system_sdram_main.cpp').read_text()
     cpp = once(cpp, '#define VSYNC_PERIOD 16667', '#define VSYNC_PERIOD 1666667')
+    if mhz != 100:
+        cpp = once(cpp, '#define VSYNC_PERIOD 1666667', f'#define VSYNC_PERIOD {mhz * 1000000 // 60}')
+        cpp = once(cpp, 'while (clk74_accum >= 100)', f'while (clk74_accum >= {mhz})')
+        cpp = once(cpp, 'clk74_accum -= 100;', f'clk74_accum -= {mhz};')
     cpp = once(cpp, 'c - last_m1_activity > 1500000', 'c - last_m1_activity > 15000000')
     cpp = once(cpp, '        if (uart_buf.find("HAL init")',
                '        const size_t failure = uart_buf.find("VMHARNESS FAIL");\n'
@@ -162,9 +174,9 @@ def rtl(jobs):
         f'SYSTEM_SDRAM_SRCS := $(subst io_sdram_mister_test.v,{twin},$(SYSTEM_SDRAM_SRCS))\n')
     command = ['make', '-f', dest / 'test.mk', dest / 'obj/Vtb_system',
                f'SYSTEM_SDRAM_DIR={dest}/obj', f'SYSTEM_SDRAM_CPP={dest}/main.cpp',
-               f'VEXII_MISTER={CPU}', f'VERILATOR=verilator -j {jobs} ' + ' '.join('+define+' + d for d in defs)]
+               f'VEXII_MISTER={cpu}', f'VERILATOR=verilator -j {jobs} ' + ' '.join('+define+' + d for d in defs)]
     run(command, dest / 'build.log', cwd=test)
-    save(dest / 'rtl.json', dict(cpu_sha256=digest(CPU), definitions=defs, sdram_parameters=memory,
+    save(dest / 'rtl.json', dict(cpu_sha256=digest(cpu), definitions=defs, sdram_parameters=memory,
          gpu_parameters=gpu, simulator_sha256=digest(dest / 'obj/Vtb_system'),
          wrapper_sha256=digest(dest / 'top.v'), runner_sha256=digest(dest / 'main.cpp'),
          controller_twin_sha256=digest(twin),
