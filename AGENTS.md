@@ -22,5 +22,9 @@ capture agreement, replay, negative oracles and the complete matrix report.
 Label timings simulated; physical Pocket performance remains separately tested.
 
 Use conventional, GPG-signed commits. No push, publication, remote creation or
-deployment is implied by local development. The skill under
-.agents/skills/os25-harness/SKILL.md contains the workload and fidelity guidance.
+deployment is implied by local development. Use
+`.agents/skills/pocket-benchmarking/SKILL.md` for benchmark-core planning,
+on-device evidence collection and compatible host/simulation/device comparisons.
+Use `.agents/skills/os25-harness/SKILL.md` for actual supported RV32 workloads,
+replay/profiling and fidelity guidance. Evidence adapters do not extend replay
+coverage. `.claude/skills` exposes the same canonical local skill collection.

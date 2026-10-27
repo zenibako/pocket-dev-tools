@@ -106,8 +106,10 @@ explicit index is mandatory, including for repeated identical reports.
 For the focused tiles log, import each selected mode with its own metadata.
 `route_version` must be `card-castle-tiles-v1`; `mode` is `normal`, `no-render`,
 `no-audio`, `core`, or `profile`. All seven window names are required. The adapter
-checks seed 7, the embedded source ID when versioned, CPU frequency, settings,
-completion and window sample minima. `FOCUS FAIL` is retained as failed evidence
+checks that the logged seed matches metadata, the embedded source ID when
+versioned, CPU frequency, settings, completion and window sample minima. The
+current project-owned route requires seed 7; confirm that value independently
+rather than treating a log/metadata match as route validation. `FOCUS FAIL` is retained as failed evidence
 and cannot be compared as a performance improvement.
 
 Standard reports require the device OS/CPU line but do not embed a source commit

@@ -54,6 +54,15 @@ bundles. It compares compatible evidence while keeping host, simulation and
 device timing separate. Result collection does not add new RTL workloads or
 device exporters.
 
+## Agent skills
+
+Use `pocket-benchmarking` for benchmark-core planning, evidence transfer and
+compatible comparisons, or `os25-harness` for supported RV32 replay/profiling.
+Canonical instructions live in `.agents/skills/`; `.claude/skills` points at the
+same collection. The skills depend on this checkout's maintained documentation.
+See the [consumer integration audit](docs/skills/2026-10-27-pocket-benchmarking-audit.md)
+for current project routing, discovery gaps and exporter/platform limitations.
+
 ## Run
 
 From this directory, with Python 3, Docker/Colima and host Clang installed.
