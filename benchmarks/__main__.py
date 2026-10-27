@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 
 from .adapters import FORMATS
-from .model import compare_runs
+from .model import compare_runs, validate_project_id
 from .comparison import compare_platform_runs
 from .coverage import coverage_matrix
 from .profiles import profile_digest, profile_from_files, verify_profile_artifacts
@@ -80,7 +80,7 @@ def main(argv=None):
     matrix = commands.add_parser('matrix', help='report four-cell coverage without aggregating timings')
     matrix.add_argument('--runs', type=Path, nargs='+', default=[])
     matrix.add_argument('--profiles', type=Path, nargs='+', default=[])
-    matrix.add_argument('--project', choices=('butterscotch', 'vvvvvv', 'pico8pocket'))
+    matrix.add_argument('--project', type=validate_project_id, help='project ID, including a new project')
     matrix.add_argument('--game')
     matrix.add_argument('--case', dest='case_id')
     matrix.add_argument('--output', type=Path)

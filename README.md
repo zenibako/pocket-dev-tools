@@ -59,6 +59,9 @@ OS/bitstream/loader/CPU identities, show independent os20/os25 × 90/100 MHz
 coverage, and support controlled device comparisons with explicit varying
 factors. These declarations do not extend simulation or establish flashed
 hardware identity.
+For a new port, [project profile selection](benchmarks/SELECTION.md) starts with
+a compatible shortlist and representative device workloads. The four catalog
+cells are optional candidates, not mandatory per-project support targets.
 
 ## Agent skills
 

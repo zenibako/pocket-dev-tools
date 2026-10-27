@@ -9,6 +9,12 @@ The coverage reporter always shows these four independent cells:
 | os20 | separate profile and device evidence | separate profile and device evidence |
 | os25 | separate profile and device evidence | separate profile and device evidence |
 
+These are independent catalog axes, not mandatory support targets for each
+project. Evaluate a compatible shortlist and record why other profiles are
+incompatible, deferred or unselected. Use the
+[project selection workflow](SELECTION.md) to decide which tested configuration
+best meets a new port's performance and correctness requirements.
+
 Representing a cell does not establish that its bitstream builds, meets timing,
 or works on hardware. Profiles declare intended artifacts. They do not attest
 what was flashed. The collector reads files and writes private Mac-side records;
@@ -138,6 +144,8 @@ Unknown clocks/variants appear in `unclassified` with reasons. Explicit
 `conditions.synthetic_fixture: true` inputs appear only in the exclusion list.
 Counts measure imported records, not independent physical trials. No status
 means independently verified correctness, fit or hardware acceptance.
+`untested` means no selected evidence; it is not a requirement to build/test that
+cell. Project applicability and evaluation scope belong in the selection note.
 
 ## Choose the comparison mode
 

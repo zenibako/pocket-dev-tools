@@ -6,7 +6,7 @@ A profile binding identifies intended artifacts, never the flashed device state.
 import copy
 import json
 
-from .model import text, validate_metadata
+from .model import text, validate_metadata, validate_project_id
 from .profiles import profile_digest, validate_binding, validate_profile
 
 
@@ -86,6 +86,8 @@ def coverage_matrix(runs, profiles=(), *, project=None, game=None, case_id=None)
     exclusions, and unknown variants/clocks remain unclassified. Nothing here
     reads files, reruns correctness checks, or aggregates measurement timings.
     """
+    if project is not None:
+        validate_project_id(project)
     registered = []
     for profile in profiles:
         definition = validate_profile(profile)

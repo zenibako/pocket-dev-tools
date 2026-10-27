@@ -8,6 +8,8 @@ It needs Python 3.10+ with no additional dependencies. Run commands from the
 Use [Platform profiles and experiments](PLATFORMS.md) to bind actual artifacts,
 track os20/os25 × 90/100 MHz coverage, and compare intentional platform changes.
 The default software comparison keeps platform settings fixed.
+For a new port, [choose a project-specific shortlist](SELECTION.md) and evaluate
+which compatible profile meets its goals. Every matrix cell need not be supported.
 
 ## Preferred device packaging
 
@@ -70,7 +72,8 @@ Never guess the compiler, flashed binary or omitted measurements.
 
 Version 1 required metadata:
 
-- `schema_version: 1`, `project` (`butterscotch`, `vvvvvv`, `pico8pocket`), `game`,
+- `schema_version: 1`, `project` (a stable lowercase ID, e.g. `butterscotch`,
+  `vvvvvv`, `pico8pocket` or `nova-pocket`), `game`,
   and integer `repeat` starting at 1.
 - `build`: nonempty `id`, `source_revision`, `compiler` (string or explicit null),
   `flags` (list). Optional lowercase `elf_sha256`, `runtime_sha256`,
@@ -83,6 +86,11 @@ Version 1 required metadata:
 - `conditions`: nonempty `initial_state`, `audio`, `pacing`. Add framebuffer,
   asset hashes, render skipping, cold/warm storage and other relevant settings.
   Extra settings participate in comparisons; keep their representation stable.
+
+Project IDs start with a letter, contain lowercase letters/digits with single
+internal hyphens, and have at most 64 characters. New projects can use the
+generic screenshot-backed `device-summary` path. Other adapters retain their
+project restrictions; a new ID does not grant host or RTL replay support.
 
 `case.target_hz` describes the intended game schedule; it does not rescale source
 timings. Missing sample counts remain null. Unknown compiler/binary identity

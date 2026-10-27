@@ -25,13 +25,20 @@ def object_value(value, label):
     return value
 
 
+def validate_project_id(value):
+    """Allow explicit new projects without implying an adapter or replay model."""
+    if (not isinstance(value, str) or len(value) > 64
+            or not re.fullmatch(r'[a-z][a-z0-9]*(?:-[a-z0-9]+)*', value)):
+        raise ValueError('project must be a lowercase ID of 1-64 letters/digits with single internal hyphens')
+    return value
+
+
 def validate_metadata(metadata):
     """Validate declared run identity without filling unknown facts with guesses."""
     object_value(metadata, 'metadata')
     if type(metadata.get('schema_version')) is not int or metadata['schema_version'] != 1:
         raise ValueError('metadata.schema_version must be 1')
-    if metadata.get('project') not in ('butterscotch', 'vvvvvv', 'pico8pocket'):
-        raise ValueError('unsupported project')
+    validate_project_id(metadata.get('project'))
     text(metadata.get('game'), 'game')
     number(metadata.get('repeat'), 'repeat', integer=True, minimum=1)
     build = object_value(metadata.get('build'), 'build')

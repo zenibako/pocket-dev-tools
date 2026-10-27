@@ -1,6 +1,6 @@
 ---
 name: pocket-benchmarking
-description: Use when planning Analogue Pocket benchmark cores, collecting device evidence, tracking os20/os25 and 90/100 MHz coverage, or comparing software and controlled platform experiments with pocket-harness.
+description: Use when choosing platform profiles for a new Analogue Pocket project, planning benchmark cores, collecting device evidence, or comparing software and platform experiments with pocket-harness.
 ---
 
 # Pocket benchmarking
@@ -21,6 +21,8 @@ RV32 capture/replay/profiling; read its canonical
 [entry point](../os25-harness/SKILL.md). Result adapters do not add RTL workloads.
 For artifact identity, four-cell coverage and deliberate platform changes, read
 the [platform workflow](../../../benchmarks/PLATFORMS.md).
+For a new port or a best-profile decision, use the
+[project selection workflow](../../../benchmarks/SELECTION.md).
 
 | Evidence | Collector format | Boundary |
 | --- | --- | --- |
@@ -43,7 +45,12 @@ route/seed/mode, warmup/sample roster, assets and effective settings. Put
 Side-by-side A/B core IDs may differ while effective settings must match. For
 PICO-8 record cart hash, logical/visible rates and render skipping separately.
 
-Register each actual os20/os25 × 90/100 MHz combination with `profile create`:
+Shortlist profiles compatible with the project's ISA/features, memory and SDK.
+Record candidate, selected, incompatible or deferred profiles with reasons.
+Each project evaluates its own shortlist; four-cell coverage is not a requirement.
+Choose representative workloads, acceptance targets and metrics before testing.
+
+Register each actual shortlisted combination with `profile create`:
 declare CPU/ISA/issue/cache/features and OS/SDK sources, and hash the packaged OS,
 bitstream, loader and CPU config. `profile verify` checks those local bytes.
 Clock and variant are independent. A profile declares intended artifacts; it
@@ -86,6 +93,9 @@ runs and synthetic exclusions. `profile_registered` is a declaration;
 `device_observed` may be unchecked; `device_reported_pass` retains a source PASS.
 Screenshot transcription never creates correctness PASS. Simulation and host
 evidence remain in separate rows. Counts are imports, not independent trials.
+Keep evidence status separate from project applicability: an untested cell may
+be deliberately unselected. Generic new project IDs can use screenshot-backed
+`device-summary` imports; project-specific adapters and RTL scope stay bounded.
 
 Use default `compare` for software regressions with the platform fixed. Two bound
 runs need identical profiles; bound/unbound comparisons are rejected. For an
@@ -96,6 +106,14 @@ device ID, full workload/conditions and sampling roster. Record
 `conditions.asset_manifest_sha256` for the actual asset set. Other effective
 settings stay fixed. A changed application ELF does not qualify for this mode.
 The platform workflow defines factor detection and exact CLI examples.
+
+If SDK/platform support requires different ELFs, assess whole working
+configurations from their separate archived rows, matched workloads and repeated
+device trials. The comparators reject that pair; no automatic ranking or
+platform-only causality is implied. Record the binary/toolchain differences.
+Recommend the best eligible tested configuration against the project's targets,
+including variability and independent correctness/lifecycle results. A tie or
+insufficient evidence is a valid decision. Leave irrelevant profiles unselected.
 
 Preserve all disclosed artifact differences and source limitations. Keep literal
 units, without 90/100 scaling. Multiple varying factors form a combined
