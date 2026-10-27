@@ -1,0 +1,11 @@
+Synthetic parser example only. These values were not measured on hardware.
+=== Undertale benchmark, speed, -O2 ===
+OS 0.25.0, core variant 1, CPU 100 MHz
+ms per frame:          work   total
+intro, menu, naming     18.1   18.5
+first room 320x240      20.2   20.7
+Flowey talk 320x240     21.0   21.4
+Flowey battle (640x480) 40.0   40.5
+2600 frames in 65.3 s; full speed is 33.3
+work = total minus display flip
+--- end of report ---

@@ -37,6 +37,14 @@ The game-port repository can record this repository's commit in a small JSON
 dependency reference. Keep the harness as a sibling checkout rather than copying
 private state into the game repo or building against the active port sources.
 
+The `benchmarks/` Python package supplies an application-independent evidence
+envelope and archival transfer CLI. Its format adapters consume reports rather
+than execute applications. Importing VVVVVV host or device evidence does not add
+a VVVVVV CPU/replay adapter; importing PICO-8 device summaries does not validate
+the os20 platform. Native source bytes, declared configuration, reported checks
+and timing domains stay explicit. See `benchmarks/README.md` for the transfer
+workflow and remaining device-side integrations.
+
 All dependencies retain their upstream licenses in private input copies. No
 vendor RTL, SDK archives, game assets, bytecode or checkpoints are tracked here.
 Extraction provenance is Butterscotch commit `88008f7` and skill commit `6328cff`.

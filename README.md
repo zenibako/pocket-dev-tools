@@ -86,6 +86,34 @@ renderer probe with renderer/GML profiling disabled. Its separate
 [results](spriteprobe/RESULTS.md) break down direct call cycles, native CPI,
 cache refills and pipeline waits; these are simulated batch timings.
 
+[Benchmark collection and transfer](benchmarks/README.md) imports existing
+Butterscotch device save-slot logs, VVVVVV host sweeps, manually transcribed
+device summaries with screenshots, and revision reports into private hashed
+bundles. It compares compatible evidence while keeping host, simulation and
+device timing separate. Result collection does not add new RTL workloads or
+device exporters.
+
+[Platform profiles and experiments](benchmarks/PLATFORMS.md) bind intended
+OS/bitstream/loader/CPU identities, show independent os20/os25 × 90/100 MHz
+coverage, and support controlled device comparisons with explicit varying
+factors. These declarations do not extend simulation or establish flashed
+hardware identity.
+For a new port, [project profile selection](benchmarks/SELECTION.md) starts with
+a compatible shortlist and representative device workloads. The four catalog
+cells are optional candidates, not mandatory per-project support targets.
+Whole-configuration comparison supports profiles requiring different application
+ELFs, with a required explanation and explicit build/platform differences.
+Controlled platform comparison continues to require the same application ELF.
+
+## Agent skills
+
+Use `pocket-benchmarking` for benchmark-core planning, evidence transfer and
+compatible comparisons, or `os25-harness` for supported RV32 replay/profiling.
+Canonical instructions live in `.agents/skills/`; `.claude/skills` points at the
+same collection. The skills depend on this checkout's maintained documentation.
+See the [consumer integration audit](docs/skills/2026-10-27-pocket-benchmarking-audit.md)
+for current project routing, discovery gaps and exporter/platform limitations.
+
 ## Run
 
 From this directory, with Python 3, Docker/Colima and host Clang installed.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pocket Benchmarking"
+  short_description: "Collect and compare Pocket benchmark evidence"
+  default_prompt: "Use $pocket-benchmarking to plan a dedicated benchmark-core run and collect comparable evidence."

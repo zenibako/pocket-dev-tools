@@ -27,6 +27,11 @@ do not silently substitute the old `undertale-vm-os25-harness` baseline director
 Commands below run from the located harness root. Read its `AGENTS.md`,
 `README.md`, and the workflow README selected below.
 
+For packaged platform identities, device-evidence collection and software,
+controlled platform or whole-configuration comparisons, use the canonical
+[pocket-benchmarking skill](../pocket-benchmarking/SKILL.md). Its collector
+adapters and profile bindings do not extend the replay workloads below.
+
 ```sh
 python3 run.py verify
 ```
