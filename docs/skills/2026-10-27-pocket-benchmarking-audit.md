@@ -1,8 +1,73 @@
 # Pocket benchmarking skill: consumer audit
 
-Audited 2026-10-27. This is a source/discovery audit, not a new device run or
-hardware qualification. Consumer repositories, global skill installations and
-SD cards were not modified. Findings describe the inspected checkouts.
+Initially audited 2026-10-27. This is source/discovery evidence, not a new device
+run or hardware qualification. The initial audit did not modify consumers. The
+subsequent user-authorized wiring and repairs are recorded below. The original
+findings and revision table later in this document describe the pre-repair state.
+
+## Consumer wiring and repairs completed
+
+The user subsequently requested wiring the skill into the existing projects and
+fixing stale skills. Each consumer now has a small physical local
+`pocket-benchmarking` router. It validates an established harness path (or a
+checked sibling candidate), opens the resolved canonical shared skill and runs
+the collector in that checkout. Missing harness inputs remain an explicit
+dependency; the local project's applicable checks can continue. The complete
+workflow remains maintained only in pocket-harness.
+
+Butterscotch, its installer and Pico8Pocket retain `.claude/skills` as their local
+canonical collection with `.agents/skills -> ../.claude/skills`. Both VVVVVV
+worktrees and openfpgaOS use physical `.agents/skills` with a same-repository
+`.claude/skills` bridge. Root instructions route the relevant work in each
+checkout. No cross-repository skill symlinks or global installation were added.
+
+| Consumer | Completed repair | Signed local commit |
+| --- | --- | --- |
+| Butterscotch runner | Added router/root discovery and owner-skill handoffs; corrected runner/installer layout, assumed umbrella build path, NUL-terminated log handling and dated runtime availability guidance | `47fb00ed8c` |
+| butterscotch-pocket installer | Added router/discovery; replaced four SDK-era skill entrypoints with narrow archival redirects to the current runner or installer owners | `68aa63f152` |
+| Pico8Pocket | Added router/root discovery; corrected effective os20 hardware and runtime provenance, separated historical QEMU/os25 models, fixed shared-runtime A/B and stale delivery/review advice | `832fb0154e` |
+| VVVVVV perf worktree | Added router/root instructions and both discovery roots; retained workload and native gates | `5ccfa8052b` |
+| VVVVVV plugin worktree | Same routing files on its distinct active revision, without moving either worktree's HEAD to the other branch | `c03fed2f52` |
+| openfpgaOS | Added native-hardware-scoped router and instruction/discovery bridges; narrow ignore exceptions expose only the Claude skill bridge | `ec62ab6de1` |
+
+The installer companion scripts remain historical resources; their entrypoints
+now explicitly direct current work away from them. Hardware/runtime identifiers,
+dependency pins, game code, package allowlists and SD contents were not changed.
+The OS checkout's pre-existing dirty VexiiRiscv submodule and recorded Git pointer
+were preserved. All consumer changes were committed locally; none were pushed.
+
+### Integration validation
+
+Static validation covered every physical skill for both Claude/Codex targets and
+both catalogs in all seven checkouts including the harness: **66 successful
+checks**, with no warning/error diagnostics, and **116 resolving local links**
+through the discovery roots. Catalogs list 5 runner skills, 5 installer skills,
+4 Pico8 skills, 1 in each VVVVVV worktree, 1 OS skill and 2 harness skills.
+The documented first-NUL log-reading command also passed a synthetic byte test.
+
+Two fresh-context read-only reviews independently retrieved the local skills and
+checked realistic installer, Pico8, runner, VVVVVV and OS scenarios. They verified
+canonical and missing-harness routing, current ownership/hardware guidance,
+ordinary-task boundaries, evidence domains and exporter limitations, and found
+no important defects. All six consumer commit signatures and explicit file
+scopes were verified. Private evidence is under `build/skill-wiring/`.
+
+These checks establish static discovery and usable instruction routing. Live
+host auto-selection after restart and device behavior were not measured. The
+PyYAML-based system validator remains unavailable; dependency-free Harnessmith
+checks were used. No firmware/game builds were needed for these documentation
+changes.
+
+### Remaining capability gaps
+
+Dedicated Butterscotch benchmark packaging, durable VVVVVV/Pico8 device exporters,
+automatic run manifests and validated os20/workload replay remain application or
+platform work. Native OS tests still have no generic collector adapter and must
+not be relabeled as game evidence. The focused seed-equality/literal-route-seed
+gap below is unchanged. The initial stale entrypoint and local-discovery findings
+are now repaired; these capability gaps are not resolved by wiring a skill.
+
+## Original audit record
 
 ## Shared entry point and ownership
 
