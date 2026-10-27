@@ -54,6 +54,12 @@ bundles. It compares compatible evidence while keeping host, simulation and
 device timing separate. Result collection does not add new RTL workloads or
 device exporters.
 
+[Platform profiles and experiments](benchmarks/PLATFORMS.md) bind intended
+OS/bitstream/loader/CPU identities, show independent os20/os25 × 90/100 MHz
+coverage, and support controlled device comparisons with explicit varying
+factors. These declarations do not extend simulation or establish flashed
+hardware identity.
+
 ## Agent skills
 
 Use `pocket-benchmarking` for benchmark-core planning, evidence transfer and

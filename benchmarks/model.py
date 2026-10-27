@@ -118,6 +118,19 @@ def compare_runs(baseline, candidate):
     for key in ('backend', 'adapter', 'comparison_config', 'reported_platform'):
         if baseline.get(key) != candidate.get(key):
             raise ValueError(f'incompatible {key}')
+    # Imports without profiles remain readable, but cannot acquire artifact identity
+    # merely by comparing with a later, fully declared run.
+    from .profiles import validate_binding
+    bindings = []
+    for run in (baseline, candidate):
+        binding = run.get('platform_profile')
+        if binding is not None:
+            if run['backend'] != 'device':
+                raise ValueError('platform profile binding requires device evidence')
+            binding = validate_binding(binding, run['metadata'])
+        bindings.append(binding)
+    if bindings[0] != bindings[1]:
+        raise ValueError('incompatible platform profiles')
     left, right = baseline['metadata'], candidate['metadata']
     for key in ('project', 'game', 'case', 'platform', 'conditions'):
         if left[key] != right[key]:
@@ -128,6 +141,22 @@ def compare_runs(baseline, candidate):
     right_build = {k: v for k, v in right['build'].items() if k not in excluded}
     if left_build != right_build:
         raise ValueError('incompatible build compiler/flags/SDK/runtime context')
+    rows = compare_rows(baseline, candidate)
+    return dict(schema_version=1, mode='software', backend=baseline['backend'], assessment='descriptive_only',
+                qualification='profile_bound' if bindings[0] else 'provisional',
+                baseline=baseline.get('run_id'), candidate=candidate.get('run_id'), rows=rows,
+                limits=['No statistical significance, independent correctness or cross-device speedup is inferred.',
+                        'Profiles declare intended artifacts; they do not attest which artifacts were flashed.',
+                        'Build attribution may be declared; inspect raw evidence and checks.',
+                        'Runs without profiles have provisional platform identity.',
+                        'Repeated imports are not independent device trials.'])
+
+
+def compare_rows(baseline, candidate):
+    """Shared arithmetic after identity controls; retain sampling denominators."""
+    for run in (baseline, candidate):
+        validate_rows(run['rows'], run['metadata'])
+    left = baseline['metadata']
     a = {row['id']: row for row in baseline['rows']}
     b = {row['id']: row for row in candidate['rows']}
     if a.keys() != b.keys():
@@ -142,8 +171,4 @@ def compare_runs(baseline, candidate):
             metrics[key] = dict(baseline=old, candidate=new, delta=new-old,
                                 percent=None if old == 0 else (new-old)/old*100)
         rows.append(dict(id=name, metrics=metrics))
-    return dict(schema_version=1, backend=baseline['backend'], assessment='descriptive_only',
-                baseline=baseline.get('run_id'), candidate=candidate.get('run_id'), rows=rows,
-                limits=['No statistical significance, independent correctness or cross-device speedup is inferred.',
-                        'Build attribution may be declared; inspect raw evidence and checks.',
-                        'Repeated imports are not independent device trials.'])
+    return rows

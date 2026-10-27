@@ -5,6 +5,10 @@ write an SD card, add device exporters or extend the validated RTL applications.
 It needs Python 3.10+ with no additional dependencies. Run commands from the
 `pocket-harness` root.
 
+Use [Platform profiles and experiments](PLATFORMS.md) to bind actual artifacts,
+track os20/os25 × 90/100 MHz coverage, and compare intentional platform changes.
+The default software comparison keeps platform settings fixed.
+
 ## Preferred device packaging
 
 Prefer a dedicated benchmark core for each application. It should install beside
@@ -176,6 +180,11 @@ result.json         versioned normalized rows, checks and limitations
 manifest.json       hashes for every stored file, written last
 ```
 
+Device imports with `--profile` additionally preserve `platform-profile.json`.
+Unprofiled legacy comparisons are explicitly provisional; profile-bound software
+comparisons require identical profiles. See [the profile workflow](PLATFORMS.md)
+for creation, coverage and the opt-in controlled platform mode.
+
 The directory is private and ignored. Imports refuse to overwrite an existing
 run. Renaming an identical source does not create a new run; changing `repeat`
 is a declaration about a real repeated trial, not permission to count one run
@@ -210,7 +219,7 @@ measurement. It exercises the transfer path without a Pocket:
 python3 -m benchmarks import --format butterscotch-device \
   --source benchmarks/examples/undertale-report.txt \
   --metadata benchmarks/examples/undertale.json
-python3 -m unittest test_benchmarks -v
+python3 -m unittest test_benchmarks test_platform_profiles test_platform_comparison test_platform_coverage test_platform_cli -v
 ```
 
 ## Remaining integrations

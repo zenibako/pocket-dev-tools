@@ -1,6 +1,6 @@
 ---
 name: pocket-benchmarking
-description: Use when planning benchmark-specific Analogue Pocket cores, collecting on-device benchmark logs or screenshots, or comparing host, simulated, and device benchmark evidence with pocket-harness.
+description: Use when planning Analogue Pocket benchmark cores, collecting device evidence, tracking os20/os25 and 90/100 MHz coverage, or comparing software and controlled platform experiments with pocket-harness.
 ---
 
 # Pocket benchmarking
@@ -19,6 +19,8 @@ Read the [collector guide](../../../benchmarks/README.md) for metadata, formats,
 transfer paths and comparison rules. Use **os25-harness** for actual supported
 RV32 capture/replay/profiling; read its canonical
 [entry point](../os25-harness/SKILL.md). Result adapters do not add RTL workloads.
+For artifact identity, four-cell coverage and deliberate platform changes, read
+the [platform workflow](../../../benchmarks/PLATFORMS.md).
 
 | Evidence | Collector format | Boundary |
 | --- | --- | --- |
@@ -41,6 +43,12 @@ route/seed/mode, warmup/sample roster, assets and effective settings. Put
 Side-by-side A/B core IDs may differ while effective settings must match. For
 PICO-8 record cart hash, logical/visible rates and render skipping separately.
 
+Register each actual os20/os25 × 90/100 MHz combination with `profile create`:
+declare CPU/ISA/issue/cache/features and OS/SDK sources, and hash the packaged OS,
+bitstream, loader and CPU config. `profile verify` checks those local bytes.
+Clock and variant are independent. A profile declares intended artifacts; it
+does not attest what was flashed, timing closure or device correctness.
+
 ## Collect and assess
 
 Finish sampling before screenshots or report writes. Butterscotch requires Quit
@@ -54,7 +62,10 @@ python3 -m benchmarks --help
 
 For Butterscotch logs, use `inspect` to select the intended report. Use `import`
 with actual metadata for each format, then printed paths with `verify` and
-`compare`. The collector
+`compare`. Bind device imports with `--profile` and a known matching clock and
+variant. Host/simulation imports remain separate and cannot bind device profiles.
+Legacy evidence stays readable and provisional; preserve its unknown identity.
+The collector
 checks archive hashes and compatibility; it does not establish physical behavior
 or independently repeat source correctness tests. Preserve reported failures and
 explicit unknowns. Synthetic examples are parser fixtures, not device evidence.
@@ -65,6 +76,31 @@ not additive. Use paired device trials for variability, plus project correctness
 and gameplay/launch/save/audio/sleep checks. The validated RTL applications remain
 Butterscotch Undertale/Deltarune on the pinned os25 model; current os20 consumers
 need separate platform/workload validation.
+
+## Check coverage and select a comparison
+
+Run `matrix` with explicitly selected bundles/store directories and registered
+profiles. Every exact workload/application/conditions/backend/device scope shows
+all four cells. Inspect counts and failures, plus unclassified unknown-clock
+runs and synthetic exclusions. `profile_registered` is a declaration;
+`device_observed` may be unchecked; `device_reported_pass` retains a source PASS.
+Screenshot transcription never creates correctness PASS. Simulation and host
+evidence remain in separate rows. Counts are imports, not independent trials.
+
+Use default `compare` for software regressions with the platform fixed. Two bound
+runs need identical profiles; bound/unbound comparisons are rejected. For an
+intentional platform experiment use `compare --mode platform` and declare each
+actual `--vary clock`, `--vary variant` and/or `--vary runtime`. Require complete
+device bindings, the same known compiler/flags, application source and ELF hash,
+device ID, full workload/conditions and sampling roster. Record
+`conditions.asset_manifest_sha256` for the actual asset set. Other effective
+settings stay fixed. A changed application ELF does not qualify for this mode.
+The platform workflow defines factor detection and exact CLI examples.
+
+Preserve all disclosed artifact differences and source limitations. Keep literal
+units, without 90/100 scaling. Multiple varying factors form a combined
+experiment; they do not isolate a clock or CPU effect. Profiles and coverage do
+not extend the pinned os25/100 MHz simulation model.
 
 For consumer discovery, stale guidance and remaining integrations, read the
 [dated project audit](../../../docs/skills/2026-10-27-pocket-benchmarking-audit.md).

@@ -8,6 +8,7 @@ import shutil
 
 from .adapters import parse_report, report_blocks
 from .model import validate_metadata, validate_rows
+from .profiles import bind_profile, validate_binding
 
 
 MAX_FILE_BYTES = 32 * 1024 * 1024
@@ -40,7 +41,8 @@ def inspect_source(source):
     return reports
 
 
-def collect(source, metadata_path, format_name, *, output, attachments=(), report_index=None):
+def collect(source, metadata_path, format_name, *, output, attachments=(), report_index=None,
+            profile_path=None):
     source = Path(source)
     raw, original_metadata = _read(source), _read(metadata_path)
     metadata = validate_metadata(json.loads(original_metadata))
@@ -51,6 +53,12 @@ def collect(source, metadata_path, format_name, *, output, attachments=(), repor
         if not extra or any(not data.startswith(signatures) for _, data in extra):
             raise ValueError('device-summary requires original PNG/JPEG/GIF screenshot attachments')
     files = {'metadata.json': original_metadata}
+    if profile_path is not None:
+        if result['backend'] != 'device':
+            raise ValueError('platform profile binding requires device evidence')
+        original_profile = _read(profile_path)
+        result['platform_profile'] = bind_profile(json.loads(original_profile), metadata)
+        files['platform-profile.json'] = original_profile
     evidence = []
     for index, (path, data) in enumerate([(source, raw)] + extra):
         # Paths are assigned locally; source names never become destination paths.
@@ -60,6 +68,8 @@ def collect(source, metadata_path, format_name, *, output, attachments=(), repor
     identity = dict(adapter=result['adapter'], metadata=metadata,
                     report_index=result.get('report_index'),
                     evidence=[dict(sha256=item['sha256'], bytes=item['bytes']) for item in evidence])
+    if 'platform_profile' in result:
+        identity['platform_profile_sha256'] = result['platform_profile']['sha256']
     run_id = _sha(_encode(identity))[:24]
     result.update(run_id=run_id, evidence=evidence,
                   imported_at=datetime.now(timezone.utc).isoformat())
@@ -107,6 +117,15 @@ def load_run(directory):
     if result.get('schema_version') != 1 or result.get('run_id') != manifest.get('run_id') or result.get('metadata') != metadata:
         raise ValueError('bundle metadata/result identity mismatch')
     validate_rows(result.get('rows'), metadata)
+    if 'platform_profile' in result:
+        if result.get('backend') != 'device':
+            raise ValueError('platform profile binding requires device evidence')
+        binding = validate_binding(result['platform_profile'], metadata)
+        if ('platform-profile.json' not in manifest['files'] or
+                json.loads(_read(folder / 'platform-profile.json')) != binding['definition']):
+            raise ValueError('bundle profile/result identity mismatch')
+    elif 'platform-profile.json' in manifest['files']:
+        raise ValueError('bundle profile is missing its result binding')
     for evidence in result.get('evidence', []):
         if manifest['files'].get(evidence['path']) != evidence['sha256']:
             raise ValueError('raw evidence hash is missing from manifest')
