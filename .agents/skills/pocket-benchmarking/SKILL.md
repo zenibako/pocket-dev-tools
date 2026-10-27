@@ -108,9 +108,13 @@ settings stay fixed. A changed application ELF does not qualify for this mode.
 The platform workflow defines factor detection and exact CLI examples.
 
 If SDK/platform support requires different ELFs, assess whole working
-configurations from their separate archived rows, matched workloads and repeated
-device trials. The comparators reject that pair; no automatic ranking or
-platform-only causality is implied. Record the binary/toolchain differences.
+configurations using `compare --mode configuration --reason "why these builds differ"`.
+Keep device, assets, full case/conditions, adapter and sample/metric rosters fixed.
+Both runs need complete device profile bindings and known ELF/source/toolchain
+identities. Inspect detected components, all field/presence differences, both full
+configuration contexts and source checks/limits. Default and controlled platform
+comparisons remain strict. Configuration deltas do not isolate a CPU, clock or
+OS effect and do not automatically rank candidates. Use repeated device trials.
 Recommend the best eligible tested configuration against the project's targets,
 including variability and independent correctness/lifecycle results. A tie or
 insufficient evidence is a valid decision. Leave irrelevant profiles unselected.

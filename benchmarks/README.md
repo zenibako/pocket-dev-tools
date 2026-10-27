@@ -213,6 +213,15 @@ Application source/build IDs, ELF hashes and repeat numbers may differ. It emits
 statistical significance or an overall speedup. Host times remain host times;
 simulated cycles remain simulated; device transcriptions stay unverified.
 
+For profiles that require different application ELFs/toolchains, use
+`compare --mode configuration --reason "why these builds differ"` with complete
+profile-bound device runs and matched device/workload/assets/conditions/sampling.
+It records full build/profile contexts and field-by-field changes. This describes
+the complete configuration's delta without isolated platform attribution; the
+default software and controlled platform modes stay strict. Read the
+[configuration contract](PLATFORMS.md#compare-profiles-requiring-different-elfs)
+before using it to inform a project selection.
+
 Use repeated, paired real-device runs to measure variance. Compare both normal
 game pacing and fixed-work diagnostics, and test launch, storage, audio, saves
 and supported sleep separately. Bitstream fit and timing closure are additional

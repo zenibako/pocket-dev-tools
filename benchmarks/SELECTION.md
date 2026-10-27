@@ -102,8 +102,23 @@ If a different SDK or platform needs a different application ELF, evaluate the
 complete working configurations. Retain each ELF/toolchain/settings identity and
 the reasons it differs. Read the archived rows side by side on the same
 workloads, with repeated device trials and independent correctness evidence.
-The collector's strict and controlled comparators intentionally reject this
-pair; there is no automatic configuration-ranking command. A practical result
+Use the separate configuration comparison mode to retain the combined delta
+and all declared build/platform differences:
+
+```sh
+python3 -m benchmarks compare build/benchmarks/BASELINE build/benchmarks/CANDIDATE \
+  --mode configuration --reason "Each SDK requires its own application ELF."
+```
+
+The known device, full workload/conditions, assets, adapter and sampling controls
+still have to match. Both profile-bound device runs need known application ELF,
+source and toolchain identities. The output records the reason, detected changed
+components, field-by-field differences, full build/profile contexts and source
+checks/limitations. `--vary` is reserved for controlled platform mode. See the
+[configuration contract](PLATFORMS.md#compare-profiles-requiring-different-elfs).
+
+The strict and controlled comparators continue to reject this pair. There is no
+automatic configuration-ranking command. A practical result
 can support “configuration A met our targets better than configuration B.” It
 cannot attribute the difference solely to the OS, cache or clock. Do not relax
 identity checks or relabel the two binaries to obtain a platform comparison.

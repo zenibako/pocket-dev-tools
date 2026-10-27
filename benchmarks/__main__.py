@@ -6,7 +6,7 @@ import sys
 
 from .adapters import FORMATS
 from .model import compare_runs, validate_project_id
-from .comparison import compare_platform_runs
+from .comparison import compare_configuration_runs, compare_platform_runs
 from .coverage import coverage_matrix
 from .profiles import profile_digest, profile_from_files, verify_profile_artifacts
 from .store import _read, collect, inspect_source, load_run
@@ -64,8 +64,9 @@ def main(argv=None):
     compare = commands.add_parser('compare', help='describe deltas between compatible evidence bundles')
     compare.add_argument('baseline', type=Path)
     compare.add_argument('candidate', type=Path)
-    compare.add_argument('--mode', choices=('software', 'platform'), default='software')
+    compare.add_argument('--mode', choices=('software', 'platform', 'configuration'), default='software')
     compare.add_argument('--vary', choices=('clock', 'variant', 'runtime'), action='append', default=[])
+    compare.add_argument('--reason', help='required explanation for a whole-configuration comparison')
     profile = commands.add_parser('profile', help='declare or verify explicit local platform artifacts')
     profile_commands = profile.add_subparsers(dest='profile_command', required=True)
     for name in ('create', 'verify'):
@@ -98,11 +99,18 @@ def main(argv=None):
             print(json.dumps(dict(run_id=run['run_id'], backend=run['backend'], checks=run['checks'],
                                   archive_hashes='verified', device_behavior='not_retested'), indent=2))
         elif args.command == 'compare':
-            if args.mode == 'software' and args.vary:
+            if args.mode != 'platform' and args.vary:
                 raise ValueError('--vary requires --mode platform')
+            if args.mode != 'configuration' and args.reason is not None:
+                raise ValueError('--reason requires --mode configuration')
             baseline, candidate = load_run(args.baseline), load_run(args.candidate)
-            _emit(compare_platform_runs(baseline, candidate, args.vary) if args.mode == 'platform'
-                  else compare_runs(baseline, candidate))
+            if args.mode == 'configuration':
+                result = compare_configuration_runs(baseline, candidate, reason=args.reason)
+            elif args.mode == 'platform':
+                result = compare_platform_runs(baseline, candidate, args.vary)
+            else:
+                result = compare_runs(baseline, candidate)
+            _emit(result)
         elif args.command == 'profile':
             definition = json.loads(_read(args.definition))
             artifacts = dict(os_bin=args.os_bin, bitstream=args.bitstream,

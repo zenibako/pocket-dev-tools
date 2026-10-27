@@ -175,3 +175,94 @@ def compare_platform_runs(baseline, candidate, varied):
                 baseline_profile_sha256=baseline['platform_profile']['sha256'],
                 candidate_profile_sha256=candidate['platform_profile']['sha256'],
                 differences=differences, rows=compare_rows(baseline, candidate), limits=limits)
+
+
+def compare_configuration_runs(baseline, candidate, *, reason):
+    """Compare complete configurations while retaining fixed workload controls.
+
+    This separate path allows known application binaries and toolchains to
+    differ. It cannot attribute a delta to an isolated platform component.
+    """
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError('configuration comparison requires a nonempty reason')
+    for run in (baseline, candidate):
+        if not isinstance(run, dict):
+            raise ValueError('configuration run must be an object')
+        checks = run.get('checks')
+        if (not isinstance(checks, dict)
+                or checks.get('correctness') not in ('not_checked', 'reported_pass', 'reported_fail')):
+            raise ValueError('configuration checks must declare reported correctness')
+        if not isinstance(run.get('limits', []), list) or any(
+                not isinstance(limit, str) for limit in run.get('limits', [])):
+            raise ValueError('configuration limits must be a list of strings')
+    left_profile, right_profile = (_validate_run(run) for run in (baseline, candidate))
+    for key in ('adapter', 'comparison_config', 'source_config'):
+        if baseline.get(key) != candidate.get(key):
+            raise ValueError(f'incompatible {key}')
+    left, right = baseline['metadata'], candidate['metadata']
+    profile_factors = _actual_factors(left_profile, right_profile)
+    for metadata in (left, right):
+        if metadata['build']['source_revision'].strip().lower() in ('unknown', 'unversioned'):
+            raise ValueError('configuration comparison requires a known application source revision')
+    components = []
+    if any(left['build'][key] != right['build'][key] for key in ('source_revision', 'elf_sha256')):
+        components.append('application')
+    if any(left['build'][key] != right['build'][key] for key in ('compiler', 'flags')):
+        components.append('toolchain')
+    components.extend(factor for factor in _FACTORS if factor in profile_factors)
+    if not components:
+        raise ValueError('configuration comparison requires a changed application, toolchain or platform')
+
+    # Preserve the strict guard itself. Only this mode removes the explicitly
+    # permitted application/toolchain fields from copies of the fixed controls.
+    controls = [copy.deepcopy(value) for value in (left, right)]
+    for metadata in controls:
+        for field in ('source_revision', 'elf_sha256', 'compiler', 'flags'):
+            metadata['build'].pop(field)
+    _fixed_metadata(*controls)
+    if (left['platform'].get('firmware', _MISSING) != right['platform'].get('firmware', _MISSING)
+            and 'runtime' not in profile_factors):
+        raise ValueError('firmware difference requires a changed runtime profile identity')
+    reported_left, reported_right = baseline.get('reported_platform'), candidate.get('reported_platform')
+    if (reported_left is None) != (reported_right is None):
+        raise ValueError('incompatible reported_platform presence')
+    if reported_left is not None:
+        for difference in _differences(reported_left, reported_right, 'reported_platform'):
+            field = difference['path'].removeprefix('reported_platform.')
+            factor = {'clock_hz': 'clock', 'firmware': 'runtime', 'core_number': 'variant'}.get(field)
+            if factor not in profile_factors:
+                raise ValueError(f'incompatible {difference["path"]}')
+            if field == 'core_number' and any(type(value) is not int or value < 0 for value in
+                    (difference['baseline'], difference['candidate'])):
+                raise ValueError('reported_platform.core_number must be a numeric core identity')
+
+    differences = (_differences(left_profile, right_profile, 'platform_profile')
+                   + _differences(left, right, 'metadata')
+                   + _differences(baseline['checks'], candidate['checks'], 'checks'))
+    if reported_left is not None:
+        differences.extend(_differences(reported_left, reported_right, 'reported_platform'))
+    limits = [
+        'Whole configurations changed; these deltas do not isolate CPU, clock, cache, OS, application or toolchain effects.',
+        'The comparison reason is a caller declaration, not an independently verified explanation.',
+        'No statistical significance, automatic winner or independent correctness is inferred; reported PASS remains reported.',
+        'Profile bindings declare intended artifacts; they do not attest flashed-device identity.',
+        'Timings retain their original units without frequency rescaling.',
+        'Repeated imports are not independent device trials.',
+    ]
+    for run in (baseline, candidate):
+        for limit in run.get('limits', []):
+            if limit not in limits:
+                limits.append(limit)
+    contexts = {name: {key: copy.deepcopy(run[key]) for key in
+                      ('metadata', 'platform_profile', 'checks')}
+                for name, run in (('baseline', baseline), ('candidate', candidate))}
+    for name, run in (('baseline', baseline), ('candidate', candidate)):
+        contexts[name]['limits'] = copy.deepcopy(run.get('limits', []))
+    return dict(schema_version=1, mode='configuration', backend='device',
+                assessment='descriptive_configuration_experiment', qualification='profile_bound',
+                attribution='whole_configuration_only', comparison_reason=reason,
+                changed_components=components, baseline=baseline.get('run_id'), candidate=candidate.get('run_id'),
+                baseline_profile_sha256=baseline['platform_profile']['sha256'],
+                candidate_profile_sha256=candidate['platform_profile']['sha256'],
+                configurations=contexts, differences=differences,
+                rows=compare_rows(baseline, candidate), limits=limits)

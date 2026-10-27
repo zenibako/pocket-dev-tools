@@ -149,6 +149,12 @@ cell. Project applicability and evaluation scope belong in the selection note.
 
 ## Choose the comparison mode
 
+| Mode | What may change | Interpretation |
+| --- | --- | --- |
+| `software` (default) | Application source/ELF on the fixed platform/toolchain | Descriptive software delta |
+| `platform` | Explicitly declared platform factors with the same ELF/toolchain | Controlled combined platform delta |
+| `configuration` | Known application source/ELF/toolchain and platform identities | Whole-configuration delta with a required reason |
+
 The default software comparison continues to hold platform, workload,
 conditions, compiler/flags/SDK/runtime and sampling fixed while application
 source/ELF may change:
@@ -207,3 +213,55 @@ Several varying factors describe a combined change without isolating causality.
 Paired repeated device trials, independent project correctness and gameplay,
 launch/save/audio/sleep checks remain separate requirements. Preserve the
 transcription, unchecked-oracle and instrumentation limits of the source runs.
+
+## Compare profiles requiring different ELFs
+
+Use configuration mode when SDK/platform support requires a rebuilt application
+and you want to evaluate the resulting working configurations:
+
+```sh
+python3 -m benchmarks compare build/benchmarks/BASELINE build/benchmarks/CANDIDATE \
+  --mode configuration --reason "The candidate SDK requires a rebuilt ELF and different compiler flags."
+```
+
+`--reason` is required, nonempty and preserved exactly. It is the caller's
+explanation, not an independently verified fact. It does not waive workload or
+evidence checks. `--vary` belongs only
+to platform mode, while `--reason` belongs only to configuration mode. The
+existing software and controlled platform comparisons keep their restrictions.
+
+Both sides require validated device profiles, complete runs, known application
+source/ELF, compiler and flags, a known physical device ID and an asset-manifest
+hash. Reported failure, unknown correctness status, missing identities, host or
+simulation evidence cannot enter this mode. An unchecked screenshot-backed run
+may be described, with its unchecked status and transcription limits retained.
+
+The configurations may differ in application source, ELF SHA-256, compiler,
+flags and profile identities. Optional runtime/SDK/loader/config declarations
+must agree with each side's profile; differing optional-field presence is
+disclosed. Build labels, repeat numbers and deployment core IDs may differ.
+Project/game, physical device, full case/conditions (including assets, seed,
+pacing and audio), adapter/config, extra build/settings and sample/metric
+rosters remain fixed. Other deployment settings remain fixed too. Reported
+hardware differences must correspond to actual changed profile factors;
+unknown nested reported settings are not silently ignored.
+
+Output includes:
+
+- `assessment: descriptive_configuration_experiment` and
+  `attribution: whole_configuration_only`.
+- The `comparison_reason`, run IDs and both profile digests.
+- Detected `changed_components`: application, toolchain, clock, variant and/or
+  runtime. These are detected changes, not claims of isolated causality.
+- Field-by-field `differences` for profiles, metadata, source checks and reported
+  hardware, with both values and explicit presence flags for added/removed fields.
+- Full `configurations.baseline` and `.candidate` metadata, profile bindings,
+  checks and source limitations, including identities that stayed the same.
+- Literal-unit row deltas, preserving both source limitations and the absence
+  of statistical significance, independent correctness or an automatic winner.
+
+Labels/repeat numbers alone do not constitute a changed configuration. Timings
+are never frequency-rescaled. The result can inform which complete working
+configuration met the project's targets; it cannot isolate an OS, CPU, cache,
+clock, compiler or application effect. Use repeated trials, independent project
+checks and the [selection workflow](SELECTION.md) for a scoped recommendation.

@@ -62,6 +62,9 @@ hardware identity.
 For a new port, [project profile selection](benchmarks/SELECTION.md) starts with
 a compatible shortlist and representative device workloads. The four catalog
 cells are optional candidates, not mandatory per-project support targets.
+Whole-configuration comparison supports profiles requiring different application
+ELFs, with a required explanation and explicit build/platform differences.
+Controlled platform comparison continues to require the same application ELF.
 
 ## Agent skills
 
