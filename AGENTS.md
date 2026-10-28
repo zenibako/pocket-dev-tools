@@ -1,4 +1,4 @@
-# os25 harness development
+# Pocket development tools
 
 Read README.md, SETUP.md and the relevant fullframe/README.md before changes.
 The initial supported workload is Butterscotch, running both Undertale and
@@ -29,3 +29,7 @@ on-device evidence collection and compatible host/simulation/device comparisons.
 Use `.agents/skills/os25-harness/SKILL.md` for actual supported RV32 workloads,
 replay/profiling and fidelity guidance. Evidence adapters do not extend replay
 coverage. `.claude/skills` exposes the same canonical local skill collection.
+
+Use `.agents/skills/pocket-release/SKILL.md` and `docs/RELEASING.md` for the
+shared release contract. Consumer projects retain their build commands, pins
+and hardware gates. Existing local `pocket-harness` paths remain supported.
