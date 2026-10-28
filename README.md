@@ -33,6 +33,11 @@ For revision snapshots, baseline/candidate pixel and PCM comparison, separate
 traced/timing executables, Speed mode and optional cost assumptions, use
 [Revision experiments](bench/README.md). The original baseline is preserved.
 
+[Routine regression checks](docs/REGRESSION.md) register an immutable verified
+case roster and compare fresh independent candidates with matching settings,
+including raw pixels, fixed PCM and negative-oracle evidence. Baseline registration
+requires completed case evidence; simulated timing has no automatic threshold.
+
 [Passive cache profiling](cacheprobe/README.md) counts real I/D refill handshakes,
 pipeline blocking and measured latency distributions, and attributes I-cache
 traffic to ELF functions. [Frozen Speed-mode results](cacheprobe/RESULTS.md)

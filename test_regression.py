@@ -1,14 +1,11 @@
 """Synthetic disk fixtures exercise validation, never constitute device evidence."""
 import argparse
 import contextlib
-import copy
-import hashlib
-import io
 import json
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -22,6 +19,7 @@ except ModuleNotFoundError:
 class RegressionTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        self.enterContext(contextlib.redirect_stdout(__import__('io').StringIO()))
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         # Only location globals are replaced. Capture, report and comparison run normally.
@@ -46,7 +44,7 @@ class RegressionTest(unittest.TestCase):
         path.write_bytes(data)
         return experiments.sha(path)
 
-    def case(self, name, *, revision='a' * 40, pixel=False, native='enabled', kind='trace'):
+    def case(self, name, *, revision='a' * 40, pixel=False, native='enabled', kind='trace', audio='fixed'):
         root = self.root / 'experiments/cases' / name
         d = root / 'build/fullframe/deltarune/bram'
         d.mkdir(parents=True)
@@ -58,7 +56,7 @@ class RegressionTest(unittest.TestCase):
         config = dict(snapshot=name, snapshot_sha256=experiments.sha(root / 'snapshot.json'),
                       game='deltarune', window='dodge', first_frame=3323, mode='accuracy', kind=kind,
                       variant='bram', profile='port', native=native, alignment=True,
-                      framebuffer='cached', clock_cost=0, audio='fixed', compiler=str(self.root / 'compiler'),
+                      framebuffer='cached', clock_cost=0, audio=audio, compiler=str(self.root / 'compiler'),
                       adapter_sources=adapter, launcher_sha256=experiments.sha(self.root / 'experiments.py'))
         self.save(root / 'experiment.json', config)
         self.save(root / 'case-ready.json', {'config_sha256': experiments.sha(root / 'experiment.json')})
@@ -75,9 +73,10 @@ class RegressionTest(unittest.TestCase):
         self.save(root / 'build/fullframe/rtl/rtl.json', rtl)
         for name in ['program.elf', 'program.bin', 'stack.bin', 'firmware.mif']:
             self.file(d / name)
-        rows = [[3323+i, 1, 2, 3, 1, 6, 7, 8] for i in range(3)]
+        # FNV-1a of eight zero bytes / 01 00 followed by six zero bytes.
+        rows = [[3323+i, 1, 0x3e801244 if pixel and i == 0 else 0x9be17165, 3, 1, 6, 7, 8] for i in range(3)]
         log = 'FRAMEHARNESS PASS HAL init\n' + ''.join(
-            f'FRAMERESULT {r[0]} 100000 1 2 3 1 6 7 8\n' for r in rows)
+            f'FRAMERESULT {r[0]} 100000 1 {r[2]:08x} 3 1 6 7 8\n' for r in rows)
         repeats = []
         for repeat in range(2):
             files = {}
@@ -85,8 +84,9 @@ class RegressionTest(unittest.TestCase):
                 files[name] = self.file(d / f'repeat-{repeat}' / name)
             files['capture.log'] = self.file(d / f'repeat-{repeat}/capture.log', log.encode())
             for index in range(3):
-                for ext, data in [('rgb555', b'\x01\x00' if pixel and index == 0 else b'\0\0'),
-                                  ('pcm', b'\0'*4), ('ppm', b'P6\n1 1\n255\n'+b'\0'*3)]:
+                for ext, data in [('rgb555', (b'\x01\x00' + b'\0'*6) if pixel and index == 0 else b'\0'*8),
+                                  ('pcm', b'\0'*4), ('ppm', b'P6\n2 2\n255\n' +
+                                   ((b'\0\0\x08'+b'\0'*9) if pixel and index == 0 else b'\0'*12))]:
                     name = f'frame-{index}.{ext}'
                     files[name] = self.file(d / f'repeat-{repeat}' / name, data)
             repeats.append(files)
@@ -101,6 +101,8 @@ class RegressionTest(unittest.TestCase):
                         bram_sha256=experiments.sha(d / 'firmware.mif'), capture_sha256=experiments.sha(d / 'capture.json'),
                         elf_sha256=experiments.sha(d / 'program.elf'), framebuffer_sha256=None)
         self.save(d / 'prepared.json', prepared)
+        log += ''.join(f'FRAMECOST {r[0]} 0 800 0\n' for r in rows)
+        log = '=== UART BEGIN ===\n' + log + '=== UART END ===\n'
         log += ('WCONF: mism=0 spurious=0 exp_fifo=0 aw_fifo=0 run_left=0\n'
                 'R mismatches=0  scanout mismatches=0  rlast slips=0  orphan beats=0  DRAM strikes=0\nSDRAM errors=0\n')
         self.file(d / 'quiet.log', log.encode())
@@ -209,6 +211,233 @@ class RegressionTest(unittest.TestCase):
         self.save(d / 'capture.json', capture)
         with self.assertRaisesRegex(ValueError, 'repeat|reproducible'):
             self.baseline([root])
+
+
+    def test_changed_adapter_and_result_log_are_rejected(self):
+        base = self.case('baseline')
+        path = self.baseline([base])
+        candidate = self.case('candidate')
+        (self.root / 'bench/runtime.c').write_text('changed adapter')
+        with self.assertRaisesRegex(ValueError, 'adapter'):
+            self.check(path, [candidate])
+
+    def test_incomplete_replay_log_oracle_and_exclusions_fail(self):
+        root = self.case('wrong-log')
+        d = root / 'build/fullframe/deltarune/bram'
+        text = (d / 'quiet.log').read_text().replace('FRAMERESULT 3324', 'IGNORED 3324')
+        (d / 'quiet.log').write_text(text)
+        result = json.loads((d / 'quiet-results.json').read_text())
+        result['log_sha256'] = experiments.sha(d / 'quiet.log')
+        self.save(d / 'quiet-results.json', result)
+        with self.assertRaisesRegex(ValueError, 'Incomplete'):
+            self.baseline([root])
+        root = self.case('excluded')
+        p = root / 'build/fullframe/deltarune/bram/quiet-results.json'
+        result = json.loads(p.read_text())
+        result['oracle_excluded_fields'] = [1, 2, 3]
+        self.save(p, result)
+        with self.assertRaisesRegex(ValueError, 'exclusions'):
+            self.baseline([root])
+
+    def test_metadata_rewrite_cannot_bless_changed_baseline(self):
+        base = self.case('baseline')
+        path = self.baseline([base])
+        p = base / 'build/fullframe/deltarune/bram/negative-results.json'
+        value = json.loads(p.read_text())
+        value['rejected'] = False
+        self.save(p, value)
+        with self.assertRaisesRegex(ValueError, 'changed'):
+            self.check(path, [self.case('candidate')])
+
+    def test_missing_repeat_files_and_realtime_are_rejected(self):
+        root = self.case('missing-repeat')
+        p = root / 'build/fullframe/deltarune/bram/capture.json'
+        value = json.loads(p.read_text())
+        del value['repeats'][1]['frame-0.rgb555']
+        self.save(p, value)
+        with self.assertRaisesRegex(ValueError, 'repeat'):
+            self.baseline([root])
+        root = self.case('realtime', audio='realtime')
+        with self.assertRaisesRegex(ValueError, 'fixed audio'):
+            self.baseline([root])
+
+    def test_same_baseline_cannot_be_its_own_candidate(self):
+        base = self.case('baseline')
+        path = self.baseline([base])
+        with self.assertRaisesRegex(ValueError, 'independent'):
+            self.check(path, [base])
+
+    def test_current_shared_capture_tool_must_match_copied_case(self):
+        (self.root / 'fullframe').mkdir()
+        (self.root / 'fullframe/run.py').write_text('current shared launcher')
+        root = self.case('old-launcher')
+        (root / 'fullframe/run.py').write_text('old shared launcher')
+        with self.assertRaisesRegex(ValueError, 'tooling|launcher'):
+            self.baseline([root])
+
+    def test_cost_counters_must_match_raw_replay_log(self):
+        root = self.case('wrong-costs')
+        p = root / 'build/fullframe/deltarune/bram/quiet-results.json'
+        result = json.loads(p.read_text())
+        result['frame_costs'][0]['clock_reads'] = 12345
+        self.save(p, result)
+        with self.assertRaisesRegex(ValueError, 'cost'):
+            self.baseline([root])
+
+
+    def test_container_compiler_must_match_recorded_version(self):
+        fake = self.root / 'fake-docker'
+        fake.write_text('#!/bin/sh\nif [ "$1" = image ]; then echo sha256:fixture; '
+                        'else echo "unexpected compiler version"; fi\n')
+        fake.chmod(0o755)
+        with patch.object(experiments, 'docker', lambda root, *cmd: [str(fake), 'run', *cmd]):
+            with self.assertRaisesRegex(ValueError, 'compiler|toolchain'):
+                regression.compiler_identity({'compiler': 'container'}, 'recorded compiler')
+
+    def test_cli_mismatch_exit_and_failure_report_are_retained(self):
+        path = self.baseline([self.case('baseline')])
+        candidate = self.case('candidate', pixel=True)
+        script = ('import pathlib,sys;sys.path.insert(0,sys.argv[1]);import regression,experiments;'
+                  'regression.ROOT=experiments.ROOT=pathlib.Path(sys.argv[2]);'
+                  'experiments.PRIVATE=experiments.ROOT/"experiments";'
+                  'sys.argv=["regression.py","check","--baseline",sys.argv[3],'
+                  '"--candidate-cases",sys.argv[4]];regression.main()')
+        result = subprocess.run(['python3', '-c', script, str(Path(__file__).parent), str(self.root),
+                                 str(path), str(candidate)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        reports = list((self.root / 'build/regressions/checks').glob('*/check.json'))
+        self.assertEqual(len(reports), 1)
+        self.assertFalse(json.loads(reports[0].read_text())['passed'])
+        self.assertFalse(json.loads(reports[0].read_text())['device_validated'])
+
+
+    def refresh_evidence(self, root):
+        """Update fixture hashes without changing its independent raw-log oracles."""
+        d = root / 'build/fullframe/deltarune/bram'
+        capture = json.loads((d / 'capture.json').read_text())
+        for repeat, files in enumerate(capture['repeats']):
+            for name in files:
+                files[name] = experiments.sha(d / f'repeat-{repeat}' / name)
+        self.save(d / 'capture.json', capture)
+        prepared = json.loads((d / 'prepared.json').read_text())
+        prepared['capture_sha256'] = experiments.sha(d / 'capture.json')
+        self.save(d / 'prepared.json', prepared)
+        rtl = json.loads((root / 'build/fullframe/rtl/rtl.json').read_text())
+        for name in ['quiet', 'negative']:
+            path = d / (name + '-results.json')
+            result = json.loads(path.read_text())
+            result['prepared'] = prepared
+            result['rtl'] = rtl
+            self.save(path, result)
+
+    def test_candidate_only_simulator_wrapper_or_leaf_drift_fails(self):
+        path = self.baseline([self.case('baseline')])
+        for index, (name, field) in enumerate([
+                ('build/fullframe/rtl/obj/Vtb_system', 'simulator_sha256'),
+                ('build/fullframe/rtl/main.cpp', 'source_sha256'),
+                ('build/rtl/rtl.json', 'leaf_rtl_sha256')]):
+            with self.subTest(field=field):
+                candidate = self.case('drift-' + str(index))
+                (candidate / name).write_bytes(b'coherently changed platform')
+                rtl_path = candidate / 'build/fullframe/rtl/rtl.json'
+                rtl = json.loads(rtl_path.read_text())
+                rtl[field] = experiments.sha(candidate / name)
+                self.save(rtl_path, rtl)
+                self.refresh_evidence(candidate)
+                with self.assertRaisesRegex(ValueError, 'platform'):
+                    self.check(path, [candidate])
+
+    def test_empty_or_truncated_pixel_files_cannot_register(self):
+        for index, raw in enumerate([b'', b'\0', b'\0'*6]):
+            with self.subTest(length=len(raw)):
+                root = self.case('bad-pixels-' + str(index))
+                d = root / 'build/fullframe/deltarune/bram'
+                for repeat in range(2):
+                    (d / f'repeat-{repeat}/frame-0.rgb555').write_bytes(raw)
+                self.refresh_evidence(root)
+                with self.assertRaisesRegex(ValueError, 'pixel|RGB555'):
+                    self.baseline([root], name='invalid-' + str(index))
+
+    def test_raw_pixels_must_match_logged_fnv_oracle(self):
+        root = self.case('wrong-oracle')
+        d = root / 'build/fullframe/deltarune/bram'
+        for repeat in range(2):
+            (d / f'repeat-{repeat}/frame-0.rgb555').write_bytes(b'\x01\0'+b'\0'*6)
+            (d / f'repeat-{repeat}/frame-0.ppm').write_bytes(b'P6\n2 2\n255\n'+b'\0\0\x08'+b'\0'*9)
+        self.refresh_evidence(root)
+        with self.assertRaisesRegex(ValueError, 'pixel.*oracle|RGB555.*oracle'):
+            self.baseline([root])
+
+    def test_ppm_geometry_and_pixels_must_correspond_to_raw_capture(self):
+        for index, ppm in enumerate([
+                b'P6\n0 2\n255\n', b'P6\n641 2\n255\n',
+                b'P6\n2 2\n255\n' + b'\0'*9,
+                b'P6\n2 2\n255\n' + b'\x08' + b'\0'*11,
+                b'P6\n2 2\n255\n' + b'\0'*13]):
+            with self.subTest(index=index):
+                root = self.case('bad-ppm-' + str(index))
+                d = root / 'build/fullframe/deltarune/bram'
+                for repeat in range(2):
+                    (d / f'repeat-{repeat}/frame-0.ppm').write_bytes(ppm)
+                self.refresh_evidence(root)
+                with self.assertRaisesRegex(ValueError, 'PPM|pixel'):
+                    self.baseline([root], name='ppm-' + str(index))
+
+
+    def test_equal_pixel_bytes_with_different_frame_geometry_fail_with_images(self):
+        path = self.baseline([self.case('baseline')])
+        candidate = self.case('different-shape')
+        d = candidate / 'build/fullframe/deltarune/bram'
+        for repeat in range(2):
+            (d / f'repeat-{repeat}/frame-0.ppm').write_bytes(b'P6\n4 1\n255\n' + b'\0'*12)
+        self.refresh_evidence(candidate)
+        self.assertFalse(self.check(path, [candidate]))
+        reports = list((self.root / 'build/regressions/checks').glob('*/comparison-*.json'))
+        self.assertEqual(len(reports), 1)
+        first = json.loads(reports[0].read_text())['first_difference']
+        self.assertEqual((first['frame'], first['field']), (3323, 'geometry'))
+        self.assertEqual(first['baseline'], [2, 2])
+        self.assertEqual(first['candidate'], [4, 1])
+        self.assertEqual(Path(first['images']['baseline']).read_bytes(), b'P6\n2 2\n255\n' + b'\0'*12)
+        self.assertEqual(Path(first['images']['candidate']).read_bytes(), b'P6\n4 1\n255\n' + b'\0'*12)
+
+
+    def replay_log(self, root, text):
+        d = root / 'build/fullframe/deltarune/bram'
+        (d / 'quiet.log').write_text(text)
+        p = d / 'quiet-results.json'
+        result = json.loads(p.read_text())
+        result['log_sha256'] = experiments.sha(d / 'quiet.log')
+        self.save(p, result)
+
+    def test_live_uart_duplicate_uses_only_bounded_summary(self):
+        root = self.case('live-uart')
+        p = root / 'build/fullframe/deltarune/bram/quiet.log'
+        text = p.read_text()
+        uart = text.split('=== UART BEGIN ===\n')[1].split('=== UART END ===')[0]
+        self.replay_log(root, uart + 'simulation complete\n' + text)
+        path = self.baseline([root])
+        self.assertTrue(path.exists())
+
+    def test_bounded_uart_requires_complete_unique_summary(self):
+        for index, change in enumerate([
+                lambda text: text.replace('=== UART BEGIN ===\n', ''),
+                lambda text: text.replace('=== UART END ===\n', ''),
+                lambda text: text.replace('=== UART END ===', '=== UART BEGIN ===\n=== UART END ==='),
+                lambda text: text + text,
+                lambda text: text.replace('FRAMERESULT 3324', 'MISSING 3324'),
+                lambda text: text.replace('FRAMECOST 3324', 'MISSINGCOST 3324'),
+                lambda text: text.replace('=== UART END ===',
+                        'FRAMERESULT 3323 100000 1 9be17165 3 1 6 7 8\n=== UART END ==='),
+                lambda text: text.replace('=== UART END ===',
+                        'FRAMECOST 3323 0 800 0\n=== UART END ==='),
+                lambda text: 'FRAMEHARNESS FAIL outside UART\n' + text]):
+            with self.subTest(index=index):
+                root = self.case('bad-uart-' + str(index))
+                p = root / 'build/fullframe/deltarune/bram/quiet.log'
+                self.replay_log(root, change(p.read_text()))
+                with self.assertRaisesRegex(ValueError, 'UART|Incomplete|failed|cost'):
+                    self.baseline([root], name='bad-uart-' + str(index))
 
 
 if __name__ == '__main__':

@@ -69,6 +69,21 @@ def declarative_port(game, directory):
     text, count = re.subn(r'ifeq \(\$\(wildcard \$\(SDK_DIR\)/sdk.mk\),\).*?endif', '', text, flags=re.S)
     if count > 1:
         raise RuntimeError('Port Makefile SDK check anchor changed')
+    # This exact upstream probe binds production native save states, a service
+    # this harness disables. Omit it before validation rather than executing its
+    # shell, accepting arbitrary inactive branches, or inventing a game identity.
+    state_probe = '''ifneq ($(wildcard $(G)data.win),)
+ifndef STATE_GAME_ID
+STATE_GAME_ID := $(shell python3 -c 'import hashlib; h=hashlib.sha256(); f=open("$(G)data.win", "rb"); [h.update(b) for b in iter(lambda:f.read(1048576), b"")]; print(h.hexdigest()[:16])')
+endif
+ifeq ($(STATE_GAME_ID),)
+$(error Could not fingerprint data.win; when compiling in a container pass STATE_GAME_ID=<host SHA256 prefix>)
+endif
+endif
+'''
+    if text.count(state_probe) > 1:
+        raise RuntimeError('Native state fingerprint probe anchor changed')
+    text = text.replace(state_probe, '# Harness: native state fingerprint unavailable\n')
     logical = text.replace('\\\n', ' ')
     safe_functions = {'abspath', 'wildcard', 'foreach', 'if', 'or', 'error'}
     reserved = {'SHELL', 'MAKEFILES', 'MAKEFLAGS', 'GNUMAKEFLAGS', 'MAKEOVERRIDES', 'CURDIR'}
@@ -81,14 +96,15 @@ def declarative_port(game, directory):
         line = raw.split('#', 1)[0].strip()
         if not line:
             continue
-        assignment = re.match(r'^([A-Za-z_][A-Za-z_0-9]*)\s*(?:[:+?]?=)', line)
+        assignment = re.match(r'^(?:export[ \t]+)?([A-Za-z_][A-Za-z_0-9]*)\s*(?:[:+?]?=)', line)
         conditional = re.match(r'^(?:(?:else )?ifn?eq\s*\(|else$|endif$)', line)
         expansion = line.startswith('$(error ')
-        exported = re.fullmatch(r'export [A-Za-z_][A-Za-z_0-9]*', line)
+        exported = re.fullmatch(r'export[ \t]+([A-Za-z_][A-Za-z_0-9]*)', line)
         if raw.startswith('\t') or not (assignment or conditional or expansion or exported):
             raise RuntimeError('Non-declarative or unsafe Makefile line: ' + line)
-        if assignment and assignment[1] in reserved:
-            raise RuntimeError('Unsafe Makefile variable: ' + assignment[1])
+        declaration = assignment or exported
+        if declaration and declaration[1] in reserved:
+            raise RuntimeError('Unsafe Makefile variable: ' + declaration[1])
         if re.search(r'\$(?!\()', line):
             raise RuntimeError('Unsafe Makefile expansion')
         for expr in re.finditer(r'\$\(([^()]*)', line):
@@ -233,7 +249,9 @@ def build(game, variant, compiler):
                                    'async storage unavailable; synchronous private file bridge',
                                    ('global OF_PC host declarations and source branches' if config['profile'] == 'legacy' else
                                     'SDK declarations shim; device source branches compiled, kernel ABI not reproduced'),
-                                   *(['native production save-state services disabled'] if generation == 'of' else [])],
+                                   *(['native production save-state services and game fingerprint probe disabled',
+                                      'virtual asset directory /frame-assets replaces the process cwd']
+                                     if generation == 'of' else [])],
                     timing_audio_hash=False if config['kind'] == 'timing' else True)
     (directory / 'build.json').write_text(json.dumps(metadata, indent=2) + '\n')
     print('Built', game, variant, config['kind'], config['mode'], metadata['compiler_version'], flush=True)

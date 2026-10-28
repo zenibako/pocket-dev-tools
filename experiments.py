@@ -179,7 +179,7 @@ def create_case(args, kind):
             raise ValueError('Incomplete case; preserve it and create a new snapshot name')
         verify_inputs(root)
         return root
-    runtime = platform()
+    runtime = platform(jobs=getattr(args, 'jobs', 4))
     tooling(root)
     copy_tree(source / 'inputs', root / 'inputs')
     for name in ['input-manifest.json', 'snapshot.json']:

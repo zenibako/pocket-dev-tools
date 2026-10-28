@@ -82,6 +82,67 @@ SRCS = main.c
             build.port_flags('undertale', self.out)
         self.assertFalse(marker.exists())
 
+    def test_export_assignment_evaluates_safe_state_path(self):
+        self.makefile('''G = assets/
+export OF_STATE_DATA := $(abspath $(G)data.win)
+CFLAGS = -DSTATE_PATH='"$(OF_STATE_DATA)"'
+SRCS = main.c
+''')
+        flags = build.port_flags('undertale', self.out)
+        result = self.compile_run('#include <stdio.h>\nint main(void){puts(STATE_PATH);}', flags)
+        self.assertEqual(Path(result.stdout.strip()).parts[-2:], ('assets', 'data.win'))
+        self.assertTrue(Path(result.stdout.strip()).is_absolute())
+        self.assertFalse((self.out / 'NEVER').exists())
+
+    def test_export_assignments_reject_unsafe_variables_and_expansions(self):
+        marker = self.out / 'export-executed'
+        for line in [
+            'export SHELL := /bin/sh',
+            'export MAKEFILES := ' + str(self.out / 'include.mk'),
+            'export SHELL',
+            'export MAKEFILES',
+            'export OF_STATE_DATA := $(shell touch ' + str(marker) + ')',
+            r'export OF_STATE_DATA := safe \# $(shell touch ' + str(marker) + ')',
+        ]:
+            with self.subTest(line=line):
+                (self.out / 'flags.mk').unlink(missing_ok=True)
+                self.makefile(line + '\nCFLAGS = -DOK\nSRCS = main.c')
+                with self.assertRaisesRegex(RuntimeError, '[Dd]eclarative|[Uu]nsafe'):
+                    build.port_flags('undertale', self.out)
+                self.assertFalse(marker.exists())
+                self.assertFalse((self.out / 'flags.mk').exists(), 'Unsafe export reached Make evaluation')
+
+    def test_known_native_state_fingerprint_probe_is_disabled_without_running_shell(self):
+        # Exact source form from the supported baseline, not a shell allowlist.
+        probe = '''ifneq ($(wildcard $(G)data.win),)
+ifndef STATE_GAME_ID
+STATE_GAME_ID := $(shell python3 -c 'import hashlib; h=hashlib.sha256(); f=open("$(G)data.win", "rb"); [h.update(b) for b in iter(lambda:f.read(1048576), b"")]; print(h.hexdigest()[:16])')
+endif
+ifeq ($(STATE_GAME_ID),)
+$(error Could not fingerprint data.win; when compiling in a container pass STATE_GAME_ID=<host SHA256 prefix>)
+endif
+endif
+'''
+        self.makefile('G = assets/\n' + probe + '''ifneq ($(STATE_GAME_ID),)
+BS_DEFS += -DOF_STATE_GAME_ID=0x$(STATE_GAME_ID)ULL
+endif
+CFLAGS = -DCOUNT=7 $(BS_DEFS)
+SRCS = main.c
+''')
+        flags = build.port_flags('undertale', self.out)
+        result = self.compile_run('''#ifdef OF_STATE_GAME_ID
+#error Native state fingerprints are outside the harness services
+#endif
+int main(void){return COUNT!=7;}
+''', flags)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        marker = self.out / 'state-probe-executed'
+        altered = probe.replace("python3 -c 'import hashlib;", 'touch ' + str(marker) + "; python3 -c 'import hashlib;")
+        self.makefile('G = assets/\n' + altered + 'CFLAGS = -DOK\nSRCS = main.c')
+        with self.assertRaisesRegex(RuntimeError, '[Dd]eclarative|[Uu]nsafe'):
+            build.port_flags('undertale', self.out)
+        self.assertFalse(marker.exists())
+
     def test_declarative_prefix_rejects_recipes_and_source_escape(self):
         marker = self.out / 'escaped'
         self.makefile('CFLAGS = -DOK\nSRCS = main.c\nprobe:\n\ttouch ' + str(marker))
