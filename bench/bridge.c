@@ -64,6 +64,30 @@ int frame_rpc(unsigned op,const char*name,unsigned offset,void*buf,unsigned size
  if(op==2 && result>0)for(int j=0;j<result;j++)((unsigned char*)buf)[j]=payload[j];
  return result;
 }
+/* Current-port virtual asset namespace. This substitutes for the production
+ * process directory: capture output directories must never enter game state.
+ * QEMU and RTL both resolve this root through the existing asset file bridge. */
+#if FRAME_CURRENT_PORT
+static const char frame_asset_root[]="/frame-assets";
+char *getcwd(char *buffer,size_t size){
+ const size_t required=sizeof(frame_asset_root);
+ if(buffer && !size){errno=EINVAL;return NULL;}
+ if(!buffer && !size)size=required;
+ if(size<required){errno=ERANGE;return NULL;}
+ if(!buffer){buffer=malloc(size);if(!buffer){errno=ENOMEM;return NULL;}}
+ memcpy(buffer,frame_asset_root,required);return buffer;
+}
+static const char *frame_asset_name(const char *name){
+ if(name[0]=='/'){
+  const size_t length=sizeof(frame_asset_root)-1;
+  if(strncmp(name,frame_asset_root,length) || name[length]!='/'){errno=EACCES;return NULL;}
+  name+=length+1;
+ }
+ /* Match the RTL asset server's rejection of absolute/parent paths. */
+ if(!name[0] || name[0]=='/' || strstr(name,"..")){errno=EACCES;return NULL;}
+ return name;
+}
+#endif
 typedef struct {char *name;int fd;off_t offset,size;} Cookie;
 static uint64_t fdmask=7;
 static ssize_t cookie_read(void *arg,char *buf,size_t size) {
@@ -78,6 +102,9 @@ static int cookie_seek(void*arg,off_t*offset,int whence){Cookie*c=arg;off_t base
 static int cookie_close(void*arg){Cookie*c=arg;if(frame_host)close(c->fd);fdmask&=~(1ull<<c->fd);free(c->name);free(c);return 0;}
 FILE *__wrap_fopen(const char*name,const char*mode) {
  if(mode[0]!='r')frame_fail("write to game file");int fd;off_t size;
+#if FRAME_CURRENT_PORT
+ name=frame_asset_name(name);if(!name)return NULL;
+#endif
  if(frame_host){fd=open(name,O_RDONLY);if(fd<0)return NULL;size=lseek(fd,0,SEEK_END);}
  else {int n=frame_rpc(1,name,0,NULL,0);if(n<0)return NULL;size=n;for(fd=3;fd<63 && (fdmask&(1ull<<fd));fd++){}if(fd==63)frame_fail("file handles");}
  if(fd>63 || size<0)frame_fail("file open");fdmask|=1ull<<fd;
@@ -85,9 +112,15 @@ FILE *__wrap_fopen(const char*name,const char*mode) {
  cookie_io_functions_t io={.read=cookie_read,.seek=cookie_seek,.close=cookie_close};FILE*f=fopencookie(c,"r",io);if(!f)frame_fail("stdio cookie");return f;
 }
 char *getenv(const char *name){
- if(!strcmp(name,"UT_NO_NATIVE"))return FRAME_DISABLE_NATIVE ? "1" : NULL;
- if(!strcmp(name,"UT_UNCAPPED") || !strcmp(name,"UT_NOFLIP"))return "1";
- if(!strcmp(name,"UT_SEED"))return "7";return NULL;
+#if FRAME_CURRENT_PORT
+ if(strncmp(name,"BS_",3))return NULL;
+#else
+ if(strncmp(name,"UT_",3))return NULL;
+#endif
+ name+=3;
+ if(!strcmp(name,"NO_NATIVE"))return FRAME_DISABLE_NATIVE ? "1" : NULL;
+ if(!strcmp(name,"UNCAPPED") || !strcmp(name,"NOFLIP"))return "1";
+ if(!strcmp(name,"SEED"))return "7";return NULL;
 }
 uint64_t frame_clock;
 extern void frame_clock_read(void);

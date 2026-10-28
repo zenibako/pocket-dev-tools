@@ -5,6 +5,50 @@ workflow in [fullframe/README.md](../fullframe/README.md). The original tooling,
 frozen inputs and baseline evidence remain unchanged. These experiments use the
 same pinned os25 CPU and memory RTL with independent source snapshots.
 
+The revision adapter recognizes the historical `ut_*` platform layout and the
+current `of_*` layout. Historical source selection is preserved. Current builds
+read the Makefile's declarative `SRCS` list, including the selected game's
+platform module and Zstandard; PC/SDL-only sources and source paths outside the
+private snapshot are rejected. Only a checked declarative prefix is evaluated:
+shell functions, recipes and included build/deploy rules are never executed.
+Flags retain their quoted C string values, and unrelated asset migration checks
+do not alter private input placement.
+
+Current tracing observes the `OpWord` dispatch and obtains the code index from
+`currentCallFrame`. Frame-boundary state checks reject an active call frame,
+environment or exception stack and traverse persistent constructor statics.
+Historical hooks and cleanup remain supported. Timing builds add no opcode or
+event calls; ELF checks still reject retained trace hooks. Deterministic settings
+use `BS_*` for current sources and `UT_*` for historical sources, with seed 7,
+uncapped execution, no presentation waits and the configured native-script gate.
+
+These are source adapters for the existing substituted platform. Native
+production save-state services are disabled, async reads report unavailable,
+and ordinary reads retain the private synchronous file bridge. The harness does
+not reproduce the production kernel, save-state service or storage ABI. Focused
+adapter checks run with `python3 -m unittest -v test_bench_adapter test_experiments`;
+complete QEMU capture and RTL replay remain required for each selected revision.
+
+Current captures resolve their process directory as the virtual `/frame-assets`
+root. The file bridge maps that namespace to the private asset directory in both
+QEMU and RTL, keeping capture output paths out of live game state. Other absolute
+roots and parent paths are rejected. The older current-port Makefile's exact
+native-state fingerprint probe is omitted with the disabled native save-state
+service; arbitrary shell expressions remain rejected. These substitutions are
+recorded in build metadata and do not establish production filesystem parity.
+
+Current startup uses a long-range transfer to restore larger SDRAM images;
+historical startup remains unchanged. Preparation verifies the interpreter's
+standalone symbol or, for optimized current SDRAM builds, its concrete DWARF
+inline ranges and containing caller. Every inline range must fit in SDRAM;
+prepared metadata records the placement kind, entry and ranges. BRAM still
+requires a standalone interpreter in application BRAM. Interpret BRAM/SDRAM
+timing deltas as whole compiled configurations: compiler inlining can differ.
+
+Use the [routine regression gate](../docs/REGRESSION.md) to register completed
+baseline cases once and check independently exported software revisions against
+their preserved evidence.
+
 For cache diagnostics on an already verified case, use the separate
 [passive observer](../cacheprobe/README.md). Its independent copies preserve
 the case’s firmware, checkpoints, frame cycles and output oracles; see the
@@ -124,6 +168,11 @@ They do not cover every frame in those sections or every battle.
 - `--variant bram|sdram` selects interpreter placement. `--traffic quiet|scanout`
   selects diagnostic display contention. Validation/output are outside timing;
   replay starts with cold CPU caches at the restored process checkpoint.
+  These comparisons describe whole compiled configurations, including code layout
+  and compiler inlining choices. A current SDRAM build may inline the interpreter
+  into `VM_executeCode`; preparation then verifies its concrete DWARF ranges and
+  records their entry and extent. BRAM retains its dedicated interpreter symbol.
+  The adapter preserves the compiler's inlining behavior.
 - `--profile port` reads the copied port Makefile's declarative CFLAGS/BS_DEFS
   prefix. It has no global `OF_PC` or additional alignment flags. A local SDK
   declaration shim includes SDK types in host-declaration mode, then undefines

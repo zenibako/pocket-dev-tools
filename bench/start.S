@@ -11,7 +11,11 @@ _rtl_start:
   li t0, 0x4e000000
   li t1, 1
   sw t1, 0(t0)
+#if FRAME_CURRENT_PORT
+  tail frame_restore
+#else
   j frame_restore
+#endif
 frame_trap:
   csrr a0, mcause
   csrr a1, mepc

@@ -178,6 +178,10 @@ capture, ELF and RTL provenance before treating its simulation result as current
 
 ## Saved bundle and comparison
 
+For recurring software updates, use the [preserved-baseline workflow](REGRESSIONS.md).
+It distinguishes project correctness gates from archival numeric comparison and
+routes each project to its supported execution path.
+
 Import prints the newly created directory under `build/benchmarks/<run-id>/`:
 
 ```text

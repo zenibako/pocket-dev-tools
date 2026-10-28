@@ -68,7 +68,8 @@ int of_has_feature(uint32_t feature){(void)feature;return 0;}
 
 
 /* Harness texture-pack read adapter. */
-#if defined(PLATFORM_PACK_READ)
+/* Current ports provide these functions in their declarative of_pack_read.c. */
+#if defined(PLATFORM_PACK_READ) && !FRAME_CURRENT_PORT
 #include "of_hooks.h"
 #include "ut_bench.h"
 #include <limits.h>

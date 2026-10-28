@@ -1,6 +1,6 @@
 ---
 name: os25-harness
-argument-hint: "[harness: path or host:path of the pocket-harness checkout]"
+argument-hint: "[harness: path or host:path of the pocket-dev-tools checkout]"
 description: Test Pico8Pocket on the isolated os20/90 MHz RTL adapter, or Butterscotch Undertale and Deltarune Chapter 1 on os25. Use for fixed-seed cart performance comparisons, baseline/candidate output replay, supported cache/pipeline analysis, sprite probes or hardware calibration evidence.
 ---
 
@@ -18,10 +18,12 @@ Do not generalize the bounded cart/scene or game/chapter evidence.
 ## Locate and verify
 
 The harness repository is <https://github.com/zenibako/pocket-dev-tools>.
-Locate the checkout in this order: the `harness` argument (a path, or `host:path`
-for a remote checkout), the `OS25_HARNESS_ROOT` environment value, then a sibling
+Locate the checkout from the `harness` argument (a path, or `host:path` for a
+remote checkout) or the root explicitly established in the session, then
+`POCKET_DEV_TOOLS_ROOT`, legacy `POCKET_HARNESS_ROOT` or `OS25_HARNESS_ROOT`, then a sibling
 checkout next to the game-port checkout named `pocket-dev-tools`, `pocket-harness` or the legacy
-`openfpga-os25-harness`. If none is found, ask once for its location. Verify
+`openfpga-os25-harness`. Resolve conflicting explicit roots before choosing one.
+If none is found, ask once for its location. Verify
 `AGENTS.md`, `run.py`, `experiments.py` and `cpu-lock.json` are present. If unavailable, locate the existing checkout or report what is missing;
 do not silently substitute the old `undertale-vm-os25-harness` baseline directory.
 Commands below run from the located harness root. Read its `AGENTS.md`,
@@ -49,6 +51,7 @@ are intentional. A sibling port edit does not alter the frozen `f1d8542` runner.
 | Butterscotch VM leaf events / synthetic interpreter checks | `run.py` | `README.md` |
 | Original complete-frame matrix | `fullframe/run.py`, `fullframe/report.py` | `fullframe/README.md` |
 | A current port revision or optimization | `experiments.py snapshot/run/compare/report` | `bench/README.md` |
+| Repeat a verified Butterscotch software regression roster | `regression.py baseline/check` | `docs/REGRESSION.md` |
 | Cache refills, retirement/CPI, FPU or dependency waits | `cache_profile.py` on an exact successful case | `cacheprobe/README.md` |
 | Direct sprite-culling call breakdown | `sprite_probe.py`, observer controls, `sprite_report.py` | `spriteprobe/README.md` |
 | Same-ELF hardware/RTL calibration or saved device log | `calibration.py` | `calibration/README.md` |
@@ -56,6 +59,11 @@ are intentional. A sibling port edit does not alter the frozen `f1d8542` runner.
 Use [references/workflows.md](references/workflows.md) for detailed commands,
 coverage, controls and timing limitations for the selected workflow. CLI `--help`
 and the maintained README take precedence over remembered command syntax.
+
+For routine Butterscotch updates, register completed reference cases once and
+use `regression.py check` to create matching independent candidates. Read the
+[shared baseline contract](../../../benchmarks/REGRESSIONS.md) for other ports;
+this command does not accept Pico8 or VVVVVV cases.
 
 For a Butterscotch port change, snapshot explicit baseline and candidate Git revisions under
 new names; never build a candidate by changing `inputs/`. Export reads Git objects,

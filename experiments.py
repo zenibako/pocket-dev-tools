@@ -149,7 +149,7 @@ def docker(root, *command):
             'undertale-vm-os25-frames:local', *command]
 
 
-def platform():
+def platform(jobs=4):
     # Simulator code is independent of game revision/window/mode. Build once per
     # adapter hash and copy its verified artifacts into each isolated case.
     version = sha(ROOT / 'bench/rtl.py')[:16]
@@ -161,7 +161,7 @@ def platform():
         copy_tree(ROOT / 'build/rtl', root / 'build/rtl')
     output = root / 'build/fullframe/rtl/rtl.json'
     if not output.exists():
-        subprocess.run(docker(root, 'python3', 'fullframe/rtl.py', 'rtl', '--jobs', '4'), check=True)
+        subprocess.run(docker(root, 'python3', 'fullframe/rtl.py', 'rtl', '--jobs', str(jobs)), check=True)
     return root
 
 
@@ -192,7 +192,7 @@ def create_case(args, kind):
             raise ValueError('Incomplete case; preserve it and create a new snapshot name')
         verify_inputs(root)
         return root
-    runtime = platform()
+    runtime = platform(jobs=getattr(args, 'jobs', 4))
     tooling(root)
     copy_tree(source / 'inputs', root / 'inputs')
     for name in ['input-manifest.json', 'snapshot.json']:

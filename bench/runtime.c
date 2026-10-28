@@ -48,11 +48,34 @@ static unsigned state_hash(Runner*r){
  h=instance_hash(r->vmContext->globalScopeInstance,h,0);
  h=word(h,arrlen(r->instances));for(int i=0;i<arrlen(r->instances);i++)h=instance_hash(r->instances[i],h,0);
  h=word(h,arrlen(r->structInstances));for(int i=0;i<arrlen(r->structInstances);i++)h=instance_hash(r->structInstances[i],h,0);
- VMContext*c=r->vmContext;if(c->stack.top || c->localVars || c->callStack || c->callDepth || c->envStack)frame_fail("frame VM cleanup");
+ VMContext*c=r->vmContext;
+#if FRAME_CURRENT_PORT
+ if(c->stack.top || c->currentCallFrame || c->envStack || c->savearefBalance)frame_fail("frame VM cleanup");
+#ifdef ENABLE_WAD17
+ if(c->exception || c->parkedException || c->exceptionHandlerStackTop)frame_fail("frame VM exception cleanup");
+#endif
+ /* Constructor statics outlive the call frame and may own arrays/structs that
+  * are absent from the live room instance list. Traverse them with the same
+  * visited set so aliases and cycles retain same-binary state coverage. */
+ for(unsigned i=0;i<c->dataWin->code.count;i++){
+  h=word(h,c->staticInitialized?c->staticInitialized[i]:0);
+  if(c->staticStructs)h=instance_hash(c->staticStructs[i],h,0);
+ }
+#else
+ if(c->stack.top || c->localVars || c->callStack || c->callDepth || c->envStack)frame_fail("frame VM cleanup");
+#endif
  if(c->codeLocalsSlotMaps)for(unsigned i=0;i<c->dataWin->code.count;i++){IntIntHashMap*m=&c->codeLocalsSlotMaps[i];h=word(h,m->capacity);h=word(h,m->count);for(unsigned j=0;j<m->capacity;j++){h=word(h,m->entries[j].key);if(m->entries[j].key!=-1)h=word(h,m->entries[j].value);}}
  return h;
 }
-void frame_tick(VMContext*c,unsigned addr,unsigned instr){frame_ops++;frame_trace=word(frame_trace,c->currentCodeIndex);frame_trace=word(frame_trace,addr);frame_trace=word(frame_trace,instr);}
+void frame_tick(VMContext*c,unsigned addr,unsigned instr){
+#if FRAME_CURRENT_PORT
+ if(!c->currentCallFrame)frame_fail("VM trace without call frame");
+ int codeIndex=c->currentCallFrame->codeIndex;
+#else
+ int codeIndex=c->currentCodeIndex;
+#endif
+ frame_ops++;frame_trace=word(frame_trace,codeIndex);frame_trace=word(frame_trace,addr);frame_trace=word(frame_trace,instr);
+}
 void frame_event(int index){frame_events++;frame_trace=word(frame_trace,(unsigned)index);}
 static unsigned cycles(void){if(frame_host)return 0;return *(volatile unsigned*)0x40000004u;}
 void frame_begin(Runner*r){

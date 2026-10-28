@@ -1,6 +1,6 @@
 ---
 name: pocket-benchmarking
-description: Use when choosing platform profiles for a new Analogue Pocket project, planning benchmark cores, collecting device evidence, or comparing software and platform experiments with pocket-harness.
+description: Use when choosing Analogue Pocket platform profiles, planning benchmark cores, setting up routine regression baselines, collecting device evidence, or comparing software and platform experiments.
 ---
 
 # Pocket benchmarking
@@ -24,6 +24,10 @@ For artifact identity, four-cell coverage and deliberate platform changes, read
 the [platform workflow](../../../benchmarks/PLATFORMS.md).
 For a new port or a best-profile decision, use the
 [project selection workflow](../../../benchmarks/SELECTION.md).
+For repeat software checks against an accepted baseline, read the
+[routine regression contract](../../../benchmarks/REGRESSIONS.md). It routes
+supported replay separately from project-owned host/device checks; the automated
+`regression.py` runner currently accepts only Butterscotch os25 cases.
 
 | Evidence | Collector format | Boundary |
 | --- | --- | --- |

@@ -7,6 +7,124 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT));import har
 BUILD=ROOT/'build/fullframe'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def save(p,x):p.write_text(json.dumps(x,indent=2)+'\n')
+def interpreter_address(symbols,variant):
+ names=('executeLoop','executeBytecodeInstructions')
+ loops=[value for name,value in symbols.items() if any(name==base or name.startswith(base+'.constprop.') for base in names)]
+ if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
+ loop=loops[0]
+ if variant=='bram' and not 0x4000<=loop<0x7800:raise RuntimeError('Interpreter was not placed in application BRAM')
+ if variant=='sdram' and not 0x10400000<=loop<0x10800000:raise RuntimeError('Interpreter was not placed in SDRAM')
+ return loop
+def _dwarf_number(value):
+ if type(value) is not int or value<0:raise RuntimeError('Malformed DWARF address/offset')
+ return value
+
+def _dwarf_address(attribute):
+ if attribute.form not in ['DW_FORM_addr','DW_FORM_addrx','DW_FORM_addrx1','DW_FORM_addrx2','DW_FORM_addrx3','DW_FORM_addrx4']:
+  raise RuntimeError('Unsupported DWARF address form')
+ return _dwarf_number(attribute.value)
+
+def _dwarf_name(die,seen=None):
+ if die is None:raise RuntimeError('Missing DWARF origin')
+ seen=set() if seen is None else set(seen)
+ if die.offset in seen:raise RuntimeError('Cyclic DWARF origin')
+ seen.add(die.offset);names=[]
+ if 'DW_AT_name' in die.attributes:
+  value=die.attributes['DW_AT_name'].value
+  if isinstance(value,bytes):value=value.decode('utf-8')
+  if not isinstance(value,str):raise RuntimeError('Malformed DWARF name')
+  names.append(value)
+ for key in ['DW_AT_abstract_origin','DW_AT_specification']:
+  if key in die.attributes:
+   name=_dwarf_name(die.get_DIE_from_attribute(key),seen)
+   if name is not None:names.append(name)
+ if len(set(names))>1:raise RuntimeError('Conflicting DWARF origin names')
+ return names[0] if names else None
+
+def _range_addresses(entries,base):
+ ranges=[]
+ for item in entries:
+  if hasattr(item,'base_address'):
+   if hasattr(item,'begin_offset') or hasattr(item,'end_offset'):raise RuntimeError('Malformed DWARF base entry')
+   base=_dwarf_number(item.base_address);continue
+  if not all(hasattr(item,key) for key in ['begin_offset','end_offset','is_absolute']) or type(item.is_absolute) is not bool:
+   raise RuntimeError('Malformed DWARF range entry')
+  begin,end=_dwarf_number(item.begin_offset),_dwarf_number(item.end_offset)
+  if not item.is_absolute:
+   if base is None:raise RuntimeError('Relative DWARF range without base')
+   begin+=base;end+=base
+  if begin>=end:raise RuntimeError('Empty or inverted DWARF range')
+  ranges.append([begin,end])
+ if not ranges:raise RuntimeError('Missing concrete DWARF ranges')
+ return ranges
+
+def _dwarf_ranges(die,dwarf):
+ attrs=die.attributes
+ low=attrs.get('DW_AT_low_pc');high=attrs.get('DW_AT_high_pc')
+ if 'DW_AT_ranges' in attrs:
+  if high is not None:raise RuntimeError('Ambiguous DWARF range representation')
+  address=attrs['DW_AT_ranges']
+  if address.form not in ['DW_FORM_sec_offset','DW_FORM_rnglistx','DW_FORM_data4','DW_FORM_data8']:
+   raise RuntimeError('Unsupported DWARF range-list form')
+  top=die.cu.get_top_DIE().attributes.get('DW_AT_low_pc')
+  base=_dwarf_address(top) if top is not None else None
+  entries=dwarf.range_lists().get_range_list_at_offset(_dwarf_number(address.value),die.cu)
+  return _range_addresses(entries,base)
+ if low is None or high is None:raise RuntimeError('Missing concrete DWARF ranges')
+ begin=_dwarf_address(low);end=_dwarf_number(high.value)
+ if high.form in ['DW_FORM_data1','DW_FORM_data2','DW_FORM_data4','DW_FORM_data8','DW_FORM_udata','DW_FORM_sdata','DW_FORM_implicit_const']:
+  end+=begin
+ elif high.form not in ['DW_FORM_addr','DW_FORM_addrx','DW_FORM_addrx1','DW_FORM_addrx2','DW_FORM_addrx3','DW_FORM_addrx4']:
+  raise RuntimeError('Unsupported DWARF high-PC form')
+ if begin>=end:raise RuntimeError('Empty or inverted DWARF PC range')
+ return [[begin,end]]
+
+def _checked_ranges(ranges,low,high):
+ ranges=sorted(ranges)
+ for index,(begin,end) in enumerate(ranges):
+  if not low<=begin<end<=high:raise RuntimeError('Interpreter range outside required memory placement')
+  if index and begin<ranges[index-1][1]:raise RuntimeError('Overlapping interpreter DWARF ranges')
+ return ranges
+
+def interpreter_placement(elf,variant,current=False):
+ if variant not in ['sdram','bram']:raise RuntimeError('Unknown interpreter placement')
+ table=elf.get_section_by_name('.symtab')
+ if table is None:raise RuntimeError('Missing interpreter symbol table')
+ symbols=list(table.iter_symbols())
+ names=('executeLoop','executeBytecodeInstructions')
+ loops=[symbol for symbol in symbols if any(symbol.name==name or symbol.name.startswith(name+'.constprop.') for name in names)]
+ bounds=(0x4000,0x7800) if variant=='bram' else (0x10400000,0x10800000)
+ if loops:
+  if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
+  symbol=loops[0];entry=interpreter_address({symbol.name:symbol.entry.st_value},variant)
+  size=_dwarf_number(symbol.entry.st_size)
+  ranges=_checked_ranges([[entry,entry+size]],*bounds) if size else []
+  return dict(kind='symbol',entry=entry,ranges=ranges,symbol=symbol.name)
+ # Only the current SDRAM compiler may inline the loop. BRAM and historical
+ # inputs still require their dedicated symbol; an arbitrary wrapper is no proof.
+ if not current or variant!='sdram':raise RuntimeError('Expected exactly one interpreter loop symbol')
+ try:
+  if not elf.has_dwarf_info():raise RuntimeError('Missing interpreter DWARF')
+  dwarf=elf.get_dwarf_info();matches=[]
+  for cu in dwarf.iter_CUs():
+   for die in cu.iter_DIEs():
+    if die.tag!='DW_TAG_inlined_subroutine' or _dwarf_name(die)!='executeBytecodeInstructions':continue
+    owner=die.get_parent()
+    while owner is not None and owner.tag!='DW_TAG_subprogram':owner=owner.get_parent()
+    if owner is None or _dwarf_name(owner)!='VM_executeCode':raise RuntimeError('Unexpected inline interpreter caller')
+    ranges=_checked_ranges(_dwarf_ranges(die,dwarf),*bounds)
+    owner_ranges=_checked_ranges(_dwarf_ranges(owner,dwarf),*bounds)
+    if any(not any(a<=begin<end<=b for a,b in owner_ranges) for begin,end in ranges):
+     raise RuntimeError('Inline interpreter range outside its caller')
+    explicit=die.attributes.get('DW_AT_entry_pc')
+    entry=_dwarf_address(explicit) if explicit is not None else ranges[0][0]
+    if not any(begin<=entry<end for begin,end in ranges):raise RuntimeError('Inline interpreter entry outside its ranges')
+    matches.append(dict(kind='inline',entry=entry,ranges=ranges,caller='VM_executeCode'))
+  if len(matches)!=1:raise RuntimeError('Expected exactly one concrete inline interpreter')
+  return matches[0]
+ except RuntimeError:raise
+ except Exception as error:raise RuntimeError('Malformed interpreter DWARF: '+str(error)) from error
+
 def prepare(game,variant):
  d=BUILD/game/variant;manifest=json.loads((d/'capture.json').read_text())
  if sha(d/'program.elf')!=manifest['elf_sha256']:raise RuntimeError('Full-frame ELF changed')
@@ -17,11 +135,7 @@ def prepare(game,variant):
  image=bytearray((d/'repeat-0/checkpoint.bin').read_bytes())
  with (d/'program.elf').open('rb') as f:
   elf=ELFFile(f);syms={s.name:s.entry.st_value for s in elf.get_section_by_name('.symtab').iter_symbols()};bram=bytearray(struct.pack('<I',0x13)*8192)
-  loops=[value for name,value in syms.items() if name=='executeLoop' or name.startswith('executeLoop.constprop.')]
-  if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
-  loop=loops[0]
-  if variant=='bram' and not 0x4000<=loop<0x7800:raise RuntimeError('Interpreter was not placed in application BRAM')
-  if variant=='sdram' and not 0x10400000<=loop<0x10800000:raise RuntimeError('Interpreter was not placed in SDRAM')
+  placement=interpreter_placement(elf,variant,manifest['build'].get('source_generation')=='of');loop=placement['entry']
   if syms['_rtl_start']!=0x10400000 or elf.header.e_entry!=syms['_host_start']:raise RuntimeError('Invalid dual boot entry points')
   struct.pack_into('<II',bram,0,0x104002b7,0x00028067)
   for s in elf.iter_sections():
@@ -34,7 +148,7 @@ def prepare(game,variant):
  if (d/'repeat-0/framebuffer.bin').is_file():(d/'framebuffer.bin').write_bytes((d/'repeat-0/framebuffer.bin').read_bytes())
  (d/'program.bin').write_bytes(image);(d/'stack.bin').write_bytes((d/'repeat-0/stack.bin').read_bytes())
  text='WIDTH=32;\nDEPTH=8192;\nADDRESS_RADIX=DEC;\nDATA_RADIX=HEX;\nCONTENT BEGIN\n'+''.join(f'{i} : {w[0]:08x};\n' for i,w in enumerate(struct.iter_unpack('<I',bram)))+'END;\n';(d/'firmware.mif').write_text(text)
- save(d/'prepared.json',dict(image_sha256=sha(d/'program.bin'),stack_sha256=sha(d/'stack.bin'),bram_sha256=sha(d/'firmware.mif'),capture_sha256=sha(d/'capture.json'),expected_address=address,heap_info=struct.unpack('<3I',(d/'repeat-0/checkpoint-info.bin').read_bytes()),execute_loop_address=loop,elf_sha256=sha(d/'program.elf'),framebuffer_sha256=sha(d/'framebuffer.bin') if (d/'framebuffer.bin').is_file() else None))
+ save(d/'prepared.json',dict(image_sha256=sha(d/'program.bin'),stack_sha256=sha(d/'stack.bin'),bram_sha256=sha(d/'firmware.mif'),capture_sha256=sha(d/'capture.json'),expected_address=address,heap_info=struct.unpack('<3I',(d/'repeat-0/checkpoint-info.bin').read_bytes()),execute_loop_address=loop,interpreter_placement=placement,elf_sha256=sha(d/'program.elf'),framebuffer_sha256=sha(d/'framebuffer.bin') if (d/'framebuffer.bin').is_file() else None))
  print('Prepared',game,variant,len(image),'bytes, heap cursor',hex(0x10400000+len(image)),flush=True)
 
 def rtl(jobs):
