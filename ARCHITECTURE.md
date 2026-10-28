@@ -14,7 +14,9 @@ and setup, not the CPU configuration or the game runtime used in the baseline.
 | Hardware calibration | `calibration.py`, `calibration/` | One SDK ELF with normal hardware entry and separate bare RTL entry; asset-free numerical/renderer probes, QEMU oracles and passive pipeline counters |
 | Experimental Pico8 runtime | `pico8/` | Independent cart snapshot, deterministic RV32 checkpoint, indexed pixels/palette/PCM oracles; historical os25 replay and separately pinned os20/90 MHz configuration |
 
-The repository name describes its hardware target. Its original validated
+The repository also owns shared release guidance in `docs/RELEASING.md` and
+`.agents/skills/pocket-release/`; consumer projects keep their own release
+commands and acceptance gates. The broader name does not expand replay support. Its original validated
 baseline supports Butterscotch with two games; `pico8/` adds an experimental
 runtime workload on the same os25 platform. This is not yet a generic plugin API: another os25
 application needs a firmware entry point/linker map, deterministic capture route,

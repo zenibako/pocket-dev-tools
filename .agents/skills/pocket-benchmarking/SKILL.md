@@ -10,7 +10,8 @@ explicit across project-owned workloads.
 
 ## Locate and route
 
-Resolve this file's canonical path; use the `pocket-harness` checkout containing
+Canonical owner: <https://github.com/zenibako/pocket-dev-tools>, formerly
+`pocket-harness`. Resolve this file's canonical path; use the verified checkout containing
 it. Run collector commands from that root, where `benchmarks/__main__.py` lives.
 Read the current project's instructions, architecture and pinned runtime before
 using its performance/build skills. Older skill prose can lag deployed hardware.

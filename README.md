@@ -1,6 +1,13 @@
-# pocket-harness: openFPGA os25/os20 replay harness
+# Pocket development tools
 
-Repository: <https://github.com/zenibako/pocket-harness> (private).
+Repository: <https://github.com/zenibako/pocket-dev-tools>.
+
+Shared release guidance, benchmark evidence collection and bounded simulation
+workloads for Analogue Pocket ports. Start with the
+[release skill](.agents/skills/pocket-release/SKILL.md) for cross-project release
+checks, or the workload guides below for simulation. The repository was formerly
+`pocket-harness`; existing checkout paths and `POCKET_HARNESS_ROOT` remain valid.
+Private inputs, saves and generated evidence stay ignored and are not included.
 
 A cycle-level simulator for openfpgaOS applications: the os25 (and Pico8Pocket's
 os20) VexiiRiscv CPU with the Pocket cache, fabric, SDRAM and BRAM model under
@@ -12,6 +19,7 @@ Verilator. Every timing it reports is **simulated** at the case's recorded clock
 
 | Part | Where |
 | --- | --- |
+| Shared release workflow | `.agents/skills/pocket-release/`, `docs/RELEASING.md` |
 | Generic harness: CPU lock, launchers, Docker, cache/pipeline observers, revision experiments, complete-frame replay | root launchers (`run.py`, `harness.py`, `experiments.py`, `bootstrap.py`, `cache_profile.py`, `pipeline_*.py`, `start.S`, `link.ld`, `cpu-lock.json`), `bench/`, `cacheprobe/`, `fullframe/` |
 | Butterscotch workload (Undertale, Deltarune Chapter 1) | root fixtures (`battle_*`, `workloads.c`, `runtime.c`, `services.c`, `capture.py`, `input-manifest.json`), `capture/`, `spriteprobe/`, `calibration/` |
 | Pico8Pocket adapter (os20) | `pico8/` |
@@ -31,6 +39,7 @@ For how to run a workload, read [AGENTS.md](AGENTS.md) and the
 [os25-harness skill](.agents/skills/os25-harness/SKILL.md).
 
 ## Butterscotch os25 VM harness
+
 
 This standalone repository tests the os25 VexiiRiscv CPU and Pocket memory
 RTL with Verilator. Its first workload is the Butterscotch interpreter running
