@@ -7,6 +7,14 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT));import har
 BUILD=ROOT/'build/fullframe'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def save(p,x):p.write_text(json.dumps(x,indent=2)+'\n')
+def interpreter_address(symbols,variant):
+ names=('executeLoop','executeBytecodeInstructions')
+ loops=[value for name,value in symbols.items() if any(name==base or name.startswith(base+'.constprop.') for base in names)]
+ if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
+ loop=loops[0]
+ if variant=='bram' and not 0x4000<=loop<0x7800:raise RuntimeError('Interpreter was not placed in application BRAM')
+ if variant=='sdram' and not 0x10400000<=loop<0x10800000:raise RuntimeError('Interpreter was not placed in SDRAM')
+ return loop
 def prepare(game,variant):
  d=BUILD/game/variant;manifest=json.loads((d/'capture.json').read_text())
  if sha(d/'program.elf')!=manifest['elf_sha256']:raise RuntimeError('Full-frame ELF changed')
@@ -17,11 +25,7 @@ def prepare(game,variant):
  image=bytearray((d/'repeat-0/checkpoint.bin').read_bytes())
  with (d/'program.elf').open('rb') as f:
   elf=ELFFile(f);syms={s.name:s.entry.st_value for s in elf.get_section_by_name('.symtab').iter_symbols()};bram=bytearray(struct.pack('<I',0x13)*8192)
-  loops=[value for name,value in syms.items() if name=='executeLoop' or name.startswith('executeLoop.constprop.')]
-  if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
-  loop=loops[0]
-  if variant=='bram' and not 0x4000<=loop<0x7800:raise RuntimeError('Interpreter was not placed in application BRAM')
-  if variant=='sdram' and not 0x10400000<=loop<0x10800000:raise RuntimeError('Interpreter was not placed in SDRAM')
+  loop=interpreter_address(syms,variant)
   if syms['_rtl_start']!=0x10400000 or elf.header.e_entry!=syms['_host_start']:raise RuntimeError('Invalid dual boot entry points')
   struct.pack_into('<II',bram,0,0x104002b7,0x00028067)
   for s in elf.iter_sections():

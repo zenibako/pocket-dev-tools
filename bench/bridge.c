@@ -85,9 +85,15 @@ FILE *__wrap_fopen(const char*name,const char*mode) {
  cookie_io_functions_t io={.read=cookie_read,.seek=cookie_seek,.close=cookie_close};FILE*f=fopencookie(c,"r",io);if(!f)frame_fail("stdio cookie");return f;
 }
 char *getenv(const char *name){
- if(!strcmp(name,"UT_NO_NATIVE"))return FRAME_DISABLE_NATIVE ? "1" : NULL;
- if(!strcmp(name,"UT_UNCAPPED") || !strcmp(name,"UT_NOFLIP"))return "1";
- if(!strcmp(name,"UT_SEED"))return "7";return NULL;
+#if FRAME_CURRENT_PORT
+ if(strncmp(name,"BS_",3))return NULL;
+#else
+ if(strncmp(name,"UT_",3))return NULL;
+#endif
+ name+=3;
+ if(!strcmp(name,"NO_NATIVE"))return FRAME_DISABLE_NATIVE ? "1" : NULL;
+ if(!strcmp(name,"UNCAPPED") || !strcmp(name,"NOFLIP"))return "1";
+ if(!strcmp(name,"SEED"))return "7";return NULL;
 }
 uint64_t frame_clock;
 extern void frame_clock_read(void);

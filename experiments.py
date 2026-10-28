@@ -139,7 +139,7 @@ def docker(root, *command):
             'undertale-vm-os25-frames:local', *command]
 
 
-def platform():
+def platform(jobs=4):
     # Simulator code is independent of game revision/window/mode. Build once per
     # adapter hash and copy its verified artifacts into each isolated case.
     version = sha(ROOT / 'bench/rtl.py')[:16]
@@ -151,7 +151,7 @@ def platform():
         copy_tree(ROOT / 'build/rtl', root / 'build/rtl')
     output = root / 'build/fullframe/rtl/rtl.json'
     if not output.exists():
-        subprocess.run(docker(root, 'python3', 'fullframe/rtl.py', 'rtl', '--jobs', '4'), check=True)
+        subprocess.run(docker(root, 'python3', 'fullframe/rtl.py', 'rtl', '--jobs', str(jobs)), check=True)
     return root
 
 
