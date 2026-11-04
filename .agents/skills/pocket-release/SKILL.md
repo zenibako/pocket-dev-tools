@@ -25,6 +25,8 @@ asset inventories, runtime pins, supported games and hardware acceptance.
 - Inspect the actual archives, source identities, runtime bytes and checksums.
   Exclude purchased inputs, converted game packs, saves, captures and private
   logs; preserve legitimate project-owned fixtures and licensed source.
+- Device test builds report `<next>-rc.<N>` from this checkout's
+  `pocket_version.py` (via the port's `make package-test`); see the contract.
 - Record desktop/simulation checks separately from physical Pocket launch,
   controls/audio, progress saves and applicable Memories/sleep checks. Keep
   unperformed checks explicit; CI is not hardware proof.

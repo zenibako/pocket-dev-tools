@@ -34,6 +34,26 @@ No cross-repository skill symlinks. Within-repository `.claude/skills` aliases
 remain supported. Existing checkout directory names and `POCKET_HARNESS_ROOT`
 do not need to change after the repository rename.
 
+## Test build versions
+
+Device test builds of the next release report `<next>-rc.<N>` in core.json so
+Pocket tools can tell them from the published release. Every port gets that
+value from [`pocket_version.py`](../pocket_version.py) in this checkout, called
+by its `make package-test`, so the heuristic lives in one place:
+
+- `N` counts the commits since the newest `vX.Y.Z` tag merged into HEAD.
+- `<next>` is `NEXT_VERSION` when set, else the committed core.json version when
+  a release prep commit already bumped it past that tag (ports pass
+  `--core-json`), else the tag with its patch number bumped.
+- The result must fit core.json's 31-character `metadata.version`.
+- A missing tag means `git fetch --tags`, or `git fetch --unshallow --tags` in a
+  shallow clone.
+
+Ports find this checkout with the order in *Resolve the shared checkout* above
+and fail clearly when it is missing. Each port still validates `CORE_VERSION`
+before deleting or writing its package, since it can be passed by hand.
+Release builds keep the plain `X.Y.Z` from the release tag.
+
 ## Plugin icon verification
 
 The compact Pocket Sync v7.1.1 plugin row renders natural image dimensions;
