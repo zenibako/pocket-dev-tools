@@ -86,15 +86,19 @@ class PocketVersionTest(unittest.TestCase):
             self.version()
 
     def test_cli_prints_the_version_and_fails_cleanly(self):
+        inherited = {k: v for k, v in os.environ.items() if k != "NEXT_VERSION"}
         run = lambda *args, **env: subprocess.run(
             [sys.executable, str(SCRIPT), "--repo", str(self.repo), *args],
-            env=dict(os.environ, **env), capture_output=True, text=True)
+            env=dict(inherited, **env), capture_output=True, text=True)
         good = run("--core-json", str(self.core_json))
         self.assertEqual((good.returncode, good.stdout), (0, "0.1.1-rc.0\n"))
         self.assertEqual(run(NEXT_VERSION="2.0.0").stdout, "2.0.0-rc.0\n")
         bad = run(NEXT_VERSION="0.0.9")
         self.assertEqual((bad.returncode, bad.stdout), (1, ""))
         self.assertIn("newer than v0.1.0", bad.stderr)
+        broken = run("--core-json", str(self.repo / "missing.json"))
+        self.assertEqual(broken.returncode, 1)
+        self.assertIn("pocket_version: cannot read core.metadata.version", broken.stderr)
         empty = tempfile.TemporaryDirectory()
         self.addCleanup(empty.cleanup)
         outside = subprocess.run([sys.executable, str(SCRIPT), "--repo", empty.name],

@@ -46,8 +46,10 @@ def parse(version, what):
 
 
 def committed_version(core_json):
-    data = json.loads(Path(core_json).read_text())
-    return data["core"]["metadata"]["version"]
+    try:
+        return json.loads(Path(core_json).read_text())["core"]["metadata"]["version"]
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise VersionError(f"cannot read core.metadata.version from {core_json}: {error!r}") from error
 
 
 def test_version(repo, core_json=None, next_version=None):
@@ -79,7 +81,7 @@ def test_version(repo, core_json=None, next_version=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--repo", default=".", help="port checkout (default: current directory)")
-    parser.add_argument("--core-json", help="committed core.json whose version a release prep commit may have bumped")
+    parser.add_argument("--core-json", help="core.json whose version release prep may have bumped (read from the working tree)")
     args = parser.parse_args(argv)
     try:
         print(test_version(Path(args.repo), args.core_json, os.environ.get("NEXT_VERSION") or None))
