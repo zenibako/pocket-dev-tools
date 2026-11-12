@@ -36,6 +36,32 @@ supported replay separately from project-owned host/device checks; the automated
 | VVVVVV/Pico8Pocket device screens | `device-summary` | Explicit transcription plus original screenshots; no OCR/correctness certification |
 | Existing Butterscotch revision report | `harness-revision` | Select one case; archival import does not rerun its private provenance checks |
 
+## Harness first; device runs prove what only hardware can
+
+Device runs cost the user a card trip each, so answer questions without one
+when you can. Start with **os25-harness** replay where the workload is
+supported, and use the project's desktop/host build for correctness, frame
+comparisons and wasted-work checks. Label every number with its domain
+(simulated, host or device) and never present one as another.
+
+Ask for a device run only when the claim needs hardware:
+
+- what the harness does not model: scanout contention, interrupts, audio
+  hardware, card/SD timing, sleep/Memories and anything the device runtime
+  could do differently from the OS source the model follows;
+- workloads or profiles the harness does not cover (check `os25-harness` for
+  the current list; VVVVVV has no replay, Pico8 replay is bounded);
+- a claim smaller than the harness resolves (code layout alone moves it a few
+  percent, so treat deltas under about 5% as device questions);
+- release or RC gates, a new bitstream/os.bin pairing, a new profile or clock,
+  and os20 stability;
+- the final confirmation of a change the harness already showed to be a win.
+
+Batch device questions into one card round where you can. Each request names
+the claim it settles, the entries to run and the evidence to send back. A
+photo of the halt-screen QR (PQ1) counts for that run's report; ask for the
+save file when earlier runs or the full log matter.
+
 ## Plan the device run
 
 Prefer a dedicated benchmark core beside gameplay, with isolated settings,
