@@ -218,7 +218,9 @@ def build(game, variant, compiler):
             'int of_file_read_async(int,uint32_t,void*,uint32_t,void (*)(int,int));\n'
             'int of_file_async_poll(void);\nint of_file_async_busy(void);\n')
     if config['alignment']:
-        app_flags += ['-falign-functions=64', '-falign-loops=64']
+        # The SDK of pocket-runtime-19d9d50 aligns loops to 8 bytes (--loop-align 8);
+        # older SDKs used 64. Cases without loop_align keep the original 64.
+        app_flags += ['-falign-functions=64', '-falign-loops=' + str(config.get('loop_align', 64))]
     # Apply after the port defaults so an explicit -U can disable a profiler.
     # Ordered tokens are recorded in the case identity and build metadata.
     app_flags += config.get('extra_cflags', [])

@@ -193,6 +193,9 @@ They do not cover every frame in those sections or every battle.
   review's description of the measured card. This extension's `port` default
   intentionally follows the request for no extra alignment. Exact card flag
   parity remains unverified.
+  Add `--loop-align 8` to match the SDK of pocket-runtime-19d9d50, whose
+  `sdk.mk` keeps `-falign-functions=64` but aligns loops to 8 bytes. The value
+  is part of the case identity only when given, so older cases keep theirs.
 - `--extra-cflags='-DUT_CACHED_HELD_ROWS'` applies ordered experiment defines
   and undefines after the port defaults. Only single `-DNAME[=VALUE]` and
   `-UNAME` tokens are accepted; include, output, plugin and linker options

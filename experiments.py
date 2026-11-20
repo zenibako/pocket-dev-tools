@@ -183,6 +183,11 @@ def create_case(args, kind):
                   launcher_sha256=sha(Path(__file__)))
     if extra_cflags:
         config['extra_cflags'] = extra_cflags
+    if getattr(args, 'loop_align', None) is not None:
+        # Recorded only when given, so existing case identities are unchanged.
+        if not args.alignment:
+            raise ValueError('--loop-align requires --alignment')
+        config['loop_align'] = args.loop_align
     key = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()[:16]
     root = PRIVATE / 'cases' / (args.snapshot + '-' + args.game + '-' + args.window + '-' + args.mode + '-' + kind + '-' + key)
     if root.exists():
@@ -430,6 +435,8 @@ def main():
     run.add_argument('--native', choices=['profile', 'enabled', 'disabled'], default='profile')
     run.add_argument('--compiler', default='container', help='container or absolute host GCC path')
     run.add_argument('--alignment', action='store_true')
+    run.add_argument('--loop-align', type=int, choices=[8, 16, 32, 64],
+                     help='loop alignment with --alignment (default 64; the 19d9d50 SDK uses 8)')
     run.add_argument('--extra-cflags', default='', help='Ordered -DNAME[=VALUE]/-UNAME experiment switches')
     run.add_argument('--variant', choices=['sdram', 'bram'], default='bram')
     run.add_argument('--traffic', choices=['quiet', 'scanout'], default='quiet')
