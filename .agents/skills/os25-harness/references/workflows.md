@@ -38,6 +38,7 @@ snapshot and retain the baseline evidence; rebuild and recapture that candidate.
 | Synthetic and captured VM events | `python3 run.py all --jobs 4`; `build/results.json` | BC16/BC17 interpreter and value/variable handling; six captured leaf events use checked builtin transcripts |
 | Complete battle frames | `python3 fullframe/run.py run`; `build/fullframe/results.json` after `python3 fullframe/report.py` | Consecutive real game-loop iterations, all reached scripts/builtins, collision, software rendering and audio mixing |
 | Revision experiments | `python3 experiments.py`; bench/README.md (`bench/README.md` under the harness root) | Frozen revisions, cross-build pixels/PCM, separate traced/timing ELFs, both modes and additional Deltarune windows |
+| Butterscotch on its shipping runtime | `python3 runtimes.py import ...`, then `experiments.py run --cpu-platform rt-os20` and `rt-os25`; bench/README.md#runtime-platforms | pocket-runtime-19d9d50 RTL with the netlists fitted into its released os20/os25 bitstreams; dual issue and reduced-accuracy FMA on os20 |
 | Passive cache/pipeline profile | `python3 cache_profile.py --case EXACT_CASE`; cacheprobe/README.md (`cacheprobe/README.md` under the harness root) | I/D refills, architectural retirement/CPI, dependencies, FPU/divider/store-buffer waits and branch recovery; unchanged CPU/firmware in independent copies |
 | Sprite-culling microprobe | `python3 sprite_probe.py --snapshot NAME`; spriteprobe/README.md (`spriteprobe/README.md` under the harness root) | Pinned staged renderer probe, renderer/GML profiling disabled, 24 repeated call batches with strict oracles and passive pipeline counters |
 | Identical-ELF hardware calibration | `python3 calibration.py`; calibration/README.md (`calibration/README.md` under the harness root) | One normal SDK ELF with separate bare RTL entry, asset-free arithmetic/memory/renderer probes, 72 intervals, QEMU/RTL oracles and prepared hardware payload |
@@ -117,6 +118,33 @@ alignment and BRAM layout separately; the harness uses GCC13 and a bounded
 allocator. Runtime timing excludes presentation, adaptive skipping and OS/SD/
 live audio scheduling, uses fixed PCM and starts with cold RTL caches. Do not
 label it physical Pocket FPS or transfer Butterscotch's os25 calibration to it.
+
+## Butterscotch runtime platforms (os20 releases)
+
+Butterscotch releases ship the os20 bitstream of pocket-runtime-19d9d50 since
+zenibako/butterscotch-pocket#132. The frozen `os25` model remains the default
+for existing baselines and regression rosters. For the shipping platform:
+
+```sh
+python3 runtimes.py import --core /path/to/openfpgaCore --netlists /path/to/VexiiRiscv
+python3 runtimes.py verify
+python3 experiments.py run --snapshot CANDIDATE --game undertale --window flowey --kind both \
+  --alignment --loop-align 8 --cpu-platform rt-os20
+python3 experiments.py run --snapshot CANDIDATE --game undertale --window flowey --kind both \
+  --alignment --loop-align 8 --cpu-platform rt-os25
+```
+
+`runtimes/pocket-runtime-19d9d50.json` pins the commit, every exported RTL
+source and the os20/os25 netlist hashes, plus the released bitstream hashes
+those netlists were fitted into. The clock comes from the lock (100 MHz for
+both). Each platform builds once, keyed by adapter and netlist hash.
+
+For float/FMA questions compare rt-os20 with rt-os25 RTL outputs of the same
+snapshot and configuration; the QEMU oracle implements IEEE fused multiply-add
+like os25 and cannot model os20's reduced-accuracy FMA. Deltarune `field`
+currently fails its QEMU state oracle at frame 2801 on every platform; use
+`bmenu` and `dodge`. See the
+[2026-11-20 results](../../../bench/2026-11-20-runtime-19d9d50-os20-results.md).
 
 ## Butterscotch calibration and sprite probes
 

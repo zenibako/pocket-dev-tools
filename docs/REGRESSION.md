@@ -3,7 +3,9 @@
 This gate builds on [revision experiments](../bench/README.md),
 [complete-frame replay](../fullframe/README.md) and the workload boundaries in
 [ARCHITECTURE.md](../ARCHITECTURE.md). It checks selected Undertale and Deltarune
-Chapter 1 windows with the pinned os25 CPU and memory simulation. It does not
+Chapter 1 windows with the pinned os25 CPU and memory simulation. Rosters do
+not yet carry `--cpu-platform`; replay os20 releases with the
+[runtime platforms](../bench/README.md#runtime-platforms) manually. It does not
 establish physical Pocket timing, hardware compatibility or production kernel,
 allocator, storage, save-state and audio-service parity.
 

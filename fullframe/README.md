@@ -99,6 +99,10 @@ at `0x10400000`; the heap grows from the ELF end and stops at `0x13a00000`;
 the stack is captured at `0x13f80000..0x13fff000`. The harness allocator splits and
 coalesces blocks within that bound; it is not production musl malloc.
 
+This original workflow stays on the frozen os25 model. Revision experiments can
+replay the same frames on the pinned pocket-runtime-19d9d50 os25/os20 platforms;
+see [runtime platforms](../bench/README.md#runtime-platforms).
+
 Frame cycle timing uses production MMIO `0x40000004`, surrounding the real loop's
 input/update/render/audio/present work. Validation and output occur afterward.
 Opcode tracing overhead is included, and the first frame starts with cold caches.

@@ -7,7 +7,7 @@ and setup, not the CPU configuration or the game runtime used in the baseline.
 | Layer | Current implementation | Reuse |
 | --- | --- | --- |
 | Dependency setup | `bootstrap.py`, input manifest, CPU lock | Hash-checked isolated source copies |
-| CPU/memory platform | OS os25 RTL, chip models and Verilator wrappers in `harness.py` | os25 CPU, caches, bus fabric, SDRAM/BRAM and memory delivery checks |
+| CPU/memory platform | OS os25 RTL, chip models and Verilator wrappers in `harness.py`; pinned runtime RTL and fitted netlists via `runtimes.py` (`runtimes/*.json`) | os25 CPU, caches, bus fabric, SDRAM/BRAM and memory delivery checks; 19d9d50 os25/os20 platforms for revision experiments |
 | Build launchers | `run.py`, Dockerfiles | Single-directory build isolation and toolchain |
 | VM workload | `workloads.c`, `services.c`, `battle_replay.*`, `battle_fixtures.py`, `capture/` | Butterscotch BC16/BC17 and event transcripts |
 | Complete frames | `fullframe/` | Butterscotch game-loop checkpoint, rendering/audio platform, QEMU capture and RTL replay |

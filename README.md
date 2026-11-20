@@ -11,8 +11,10 @@ Private inputs, saves and generated evidence stay ignored and are not included.
 
 A cycle-level simulator for openfpgaOS applications: the os25 (and Pico8Pocket's
 os20) VexiiRiscv CPU with the Pocket cache, fabric, SDRAM and BRAM model under
-Verilator. Every timing it reports is **simulated** at the case's recorded clock
-(100 MHz os25, 90 MHz os20). Hardware behaviour needs a separate Pocket run; see
+Verilator, plus pinned runtime platforms that replay Butterscotch on the
+pocket-runtime-19d9d50 os25 and os20 netlists it ships with. Every timing it
+reports is **simulated** at the case's recorded clock (100 MHz os25 and both
+19d9d50 platforms, 90 MHz for the Pico8Pocket os20 adapter). Hardware behaviour needs a separate Pocket run; see
 [calibration/README.md](calibration/README.md).
 
 ## Repository layout
@@ -45,6 +47,12 @@ This standalone repository tests the os25 VexiiRiscv CPU and Pocket memory
 RTL with Verilator. Its first workload is the Butterscotch interpreter running
 Undertale and Deltarune Chapter 1. Builds mount only this repository in Docker.
 They do not access an active game-port checkout or an SD card.
+
+Butterscotch releases ship the os20 bitstream of pocket-runtime-19d9d50
+(zenibako/butterscotch-pocket#132). `experiments.py run --cpu-platform rt-os20`
+replays revisions on that runtime's RTL and fitted os20 netlist, and `rt-os25`
+on its os25; the frozen os25 model remains the default. See
+[runtime platforms](bench/README.md#runtime-platforms).
 
 The CPU/cache/fabric/SDRAM/BRAM infrastructure can support other os25 applications.
 The current VM fixtures, capture hooks and frame platform are Butterscotch adapters;
@@ -85,7 +93,8 @@ traced/timing executables, Speed mode and optional cost assumptions, use
 case roster and compare fresh independent candidates with matching settings,
 including raw pixels, fixed PCM and negative-oracle evidence. Baseline registration
 requires completed case evidence; simulated timing has no automatic threshold.
-That command currently supports Butterscotch os25. Other projects can adopt the
+That command currently supports Butterscotch on the frozen os25 model, not the
+runtime platforms. Other projects can adopt the
 [shared regression contract](benchmarks/REGRESSIONS.md) with their own tests and
 available host/device evidence; an evidence importer does not add replay support.
 

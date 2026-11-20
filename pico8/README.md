@@ -58,7 +58,9 @@ python3 pico8/run.py create --source /absolute/pico8pocket \
 ```
 
 The launcher privately copies the locked CPU sources and generates the frozen
-OS `8318f25` os20 configuration: dual issue, 32 KiB I-cache, 64 KiB D-cache,
+OS `8318f25` os20 configuration (the older 90 MHz os20; it is not the
+pocket-runtime-19d9d50 os20 at 100 MHz that Butterscotch's `rt-os20` platform
+uses): dual issue, 32 KiB I-cache, 64 KiB D-cache,
 reduced-accuracy FMA and a 4-slot/32-operation store buffer. It resolves os20's
 production SDRAM/GPU macros, including the 660-cycle refresh interval, sets the
 peripheral clock register to 90 MHz, scales the 74 MHz bridge clock ratio, vsync
