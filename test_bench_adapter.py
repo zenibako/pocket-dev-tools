@@ -1,5 +1,6 @@
 """Behavioral checks for the isolated historical/current port adapter."""
 import ast
+import re
 import importlib.util
 from pathlib import Path
 import shutil
@@ -226,11 +227,13 @@ static void frame_event(int index){if(index==3)events++;}
         functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)
                      and node.name == 'interpreter_address']
         self.assertEqual(len(functions), 1, 'Replay needs generation-aware interpreter selection')
-        namespace = {}
+        namespace = {'re': re}
         exec(compile(ast.Module(body=functions, type_ignores=[]), 'bench/rtl.py', 'exec'), namespace)
         select = namespace['interpreter_address']
+        # GCC 13.2 names the current port's BRAM loop executeBytecodeInstructions.isra.0.
         for name in ['executeLoop', 'executeLoop.constprop.0', 'executeBytecodeInstructions',
-                     'executeBytecodeInstructions.constprop.0']:
+                     'executeBytecodeInstructions.constprop.0', 'executeBytecodeInstructions.isra.0',
+                     'executeBytecodeInstructions.isra.0.constprop.1']:
             self.assertEqual(select({name: 0x4000}, 'bram'), 0x4000)
             self.assertEqual(select({name: 0x10401000}, 'sdram'), 0x10401000)
             with self.assertRaisesRegex(RuntimeError, 'BRAM'):
@@ -239,6 +242,9 @@ static void frame_event(int index){if(index==3)events++;}
             select({'executeLoop': 0x4000, 'executeBytecodeInstructions': 0x4010}, 'bram')
         with self.assertRaisesRegex(RuntimeError, 'exactly one'):
             select({'unknownLoop': 0x4000}, 'bram')
+        for name in ['executeBytecodeInstructions.part.0', 'executeBytecodeInstructionsX']:
+            with self.assertRaisesRegex(RuntimeError, 'exactly one'):
+                select({name: 0x4000}, 'bram')
 
     def test_deterministic_environment_routes_selected_generation(self):
         # Execute the real bridge getenv independently of RV32-only syscalls.

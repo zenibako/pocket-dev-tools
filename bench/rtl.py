@@ -9,7 +9,7 @@ def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def save(p,x):p.write_text(json.dumps(x,indent=2)+'\n')
 def interpreter_address(symbols,variant):
  names=('executeLoop','executeBytecodeInstructions')
- loops=[value for name,value in symbols.items() if any(name==base or name.startswith(base+'.constprop.') for base in names)]
+ loops=[value for name,value in symbols.items() if any(name==base or re.fullmatch(re.escape(base)+r'(\.(constprop|isra)\.\d+)+',name) for base in names)]
  if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
  loop=loops[0]
  if variant=='bram' and not 0x4000<=loop<0x7800:raise RuntimeError('Interpreter was not placed in application BRAM')
@@ -92,7 +92,7 @@ def interpreter_placement(elf,variant,current=False):
  if table is None:raise RuntimeError('Missing interpreter symbol table')
  symbols=list(table.iter_symbols())
  names=('executeLoop','executeBytecodeInstructions')
- loops=[symbol for symbol in symbols if any(symbol.name==name or symbol.name.startswith(name+'.constprop.') for name in names)]
+ loops=[symbol for symbol in symbols if any(symbol.name==name or re.fullmatch(re.escape(name)+r'(\.(constprop|isra)\.\d+)+',symbol.name) for name in names)]
  bounds=(0x4000,0x7800) if variant=='bram' else (0x10400000,0x10800000)
  if loops:
   if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
