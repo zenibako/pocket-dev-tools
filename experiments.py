@@ -14,6 +14,8 @@ import subprocess
 import tarfile
 import tempfile
 
+import runtimes
+
 ROOT = Path(__file__).resolve().parent
 PRIVATE = ROOT / 'experiments'
 WINDOWS = {'undertale': {'flowey': 2400},
@@ -149,19 +151,37 @@ def docker(root, *command):
             'undertale-vm-os25-frames:local', *command]
 
 
-def platform(jobs=4):
+def platform(jobs=4, cpu_platform='os25'):
     # Simulator code is independent of game revision/window/mode. Build once per
-    # adapter hash and copy its verified artifacts into each isolated case.
+    # adapter hash (and runtime platform) and copy its verified artifacts into each case.
     version = sha(ROOT / 'bench/rtl.py')[:16]
+    runtime = None
+    if cpu_platform != 'os25':
+        # Runtime platforms replace only the RTL tree and CPU netlist; the frozen
+        # inputs (game, SDK, captures) and the os25 default stay untouched.
+        runtime, lock, entry = runtimes.platforms()[cpu_platform]
+        runtimes.verify(runtime, lock)
+        version += '-' + cpu_platform + '-' + entry['netlist_sha256'][:12]
+        netlist = '/work/inputs/os/' + runtimes.NETLIST_DIR + '/' + entry['netlist']
     root = PRIVATE / 'platform' / version
     if not root.exists():
         tooling(root)
         copy_tree(ROOT / 'inputs', root / 'inputs')
         shutil.copy2(ROOT / 'input-manifest.json', root / 'input-manifest.json')
-        copy_tree(ROOT / 'build/rtl', root / 'build/rtl')
+        if runtime is None:
+            copy_tree(ROOT / 'build/rtl', root / 'build/rtl')
+        else:
+            shutil.rmtree(root / 'inputs/os')
+            copy_tree(runtimes.tree(runtime), root / 'inputs/os')
+            mhz = entry['clock_hz'] // 1000000
+            subprocess.run(docker(root, 'python3', '-c',
+                'import harness; from pathlib import Path; '
+                f'harness.rtl({jobs}, variant={entry["variant"]!r}, dest=Path("/work/build/rtl"), '
+                f'cpu=Path({netlist!r}), mhz={mhz}, compile_leaf=False)'), check=True)
     output = root / 'build/fullframe/rtl/rtl.json'
     if not output.exists():
-        subprocess.run(docker(root, 'python3', 'fullframe/rtl.py', 'rtl', '--jobs', str(jobs)), check=True)
+        env = [] if runtime is None else ['env', 'HARNESS_CPU=' + netlist]
+        subprocess.run(docker(root, *env, 'python3', 'fullframe/rtl.py', 'rtl', '--jobs', str(jobs)), check=True)
     return root
 
 
@@ -183,6 +203,9 @@ def create_case(args, kind):
                   launcher_sha256=sha(Path(__file__)))
     if extra_cflags:
         config['extra_cflags'] = extra_cflags
+    if getattr(args, 'cpu_platform', 'os25') != 'os25':
+        # Recorded only for runtime platforms, so frozen os25 case identities are unchanged.
+        config['cpu_platform'] = args.cpu_platform
     if getattr(args, 'loop_align', None) is not None:
         # Recorded only when given, so existing case identities are unchanged.
         if not args.alignment:
@@ -197,7 +220,7 @@ def create_case(args, kind):
             raise ValueError('Incomplete case; preserve it and create a new snapshot name')
         verify_inputs(root)
         return root
-    runtime = platform(jobs=getattr(args, 'jobs', 4))
+    runtime = platform(jobs=getattr(args, 'jobs', 4), cpu_platform=getattr(args, 'cpu_platform', 'os25'))
     tooling(root)
     copy_tree(source / 'inputs', root / 'inputs')
     for name in ['input-manifest.json', 'snapshot.json']:
@@ -395,6 +418,7 @@ def report_cases(args):
         partner = next((r for r in records if r['build_kind']=='timing' and r['revision']==record['revision']
                         and r['native_scripts']==record['native_scripts']
                         and r['config'].get('extra_cflags', []) == record['config'].get('extra_cflags', [])
+                        and all(r['config'].get(f) == record['config'].get(f) for f in ['cpu_platform', 'loop_align'])
                         and all(r['config'][f]==record['config'][f] for f in
                                 ['snapshot_sha256','mode','window','game','variant','profile','framebuffer','clock_cost','audio',
                                  'alignment','compiler'])
@@ -437,6 +461,8 @@ def main():
     run.add_argument('--alignment', action='store_true')
     run.add_argument('--loop-align', type=int, choices=[8, 16, 32, 64],
                      help='loop alignment with --alignment (default 64; the 19d9d50 SDK uses 8)')
+    run.add_argument('--cpu-platform', default='os25', choices=['os25', *runtimes.platforms()],
+                     help='os25 = frozen model (default); rt-* = a pinned runtime from runtimes/*.json')
     run.add_argument('--extra-cflags', default='', help='Ordered -DNAME[=VALUE]/-UNAME experiment switches')
     run.add_argument('--variant', choices=['sdram', 'bram'], default='bram')
     run.add_argument('--traffic', choices=['quiet', 'scanout'], default='quiet')

@@ -103,14 +103,16 @@ def firmware():
                                              text=True, check=True).stdout.splitlines()[0]))
 
 
-def rtl(jobs, variant='os25', dest=None, cpu=None):
+def rtl(jobs, variant='os25', dest=None, cpu=None, mhz=None, compile_leaf=True):
     if variant not in ('os20', 'os25'):
         raise ValueError('Unsupported Pocket platform')
     if variant == 'os20' and cpu is None:
         raise ValueError('os20 requires its separately pinned CPU netlist')
     dest = dest or BUILD / 'rtl'
     cpu = cpu or CPU
-    mhz = 90 if variant == 'os20' else 100
+    # The clock belongs to the platform: the frozen Pico8 os20 runs at 90 MHz, while
+    # runtime platforms (runtimes/*.json) pass their own, e.g. 100 MHz for 19d9d50 os20.
+    mhz = mhz or (90 if variant == 'os20' else 100)
     dest.mkdir(exist_ok=True)
     target = OS / 'src/fpga/targets/pocket'
     test = OS / 'src/fpga/test'
@@ -175,9 +177,13 @@ def rtl(jobs, variant='os25', dest=None, cpu=None):
     command = ['make', '-f', dest / 'test.mk', dest / 'obj/Vtb_system',
                f'SYSTEM_SDRAM_DIR={dest}/obj', f'SYSTEM_SDRAM_CPP={dest}/main.cpp',
                f'VEXII_MISTER={cpu}', f'VERILATOR=verilator -j {jobs} ' + ' '.join('+define+' + d for d in defs)]
-    run(command, dest / 'build.log', cwd=test)
+    # Full-frame platforms reuse only this wrapper, twin and definitions; they can
+    # skip compiling the leaf simulator itself.
+    if compile_leaf:
+        run(command, dest / 'build.log', cwd=test)
     save(dest / 'rtl.json', dict(cpu_sha256=digest(cpu), definitions=defs, sdram_parameters=memory,
-         gpu_parameters=gpu, simulator_sha256=digest(dest / 'obj/Vtb_system'),
+         gpu_parameters=gpu, variant=variant, clock_mhz=mhz,
+         simulator_sha256=digest(dest / 'obj/Vtb_system') if compile_leaf else None,
          wrapper_sha256=digest(dest / 'top.v'), runner_sha256=digest(dest / 'main.cpp'),
          controller_twin_sha256=digest(twin),
          verilator=subprocess.run(['verilator', '--version'], capture_output=True, text=True, check=True).stdout.strip()))
