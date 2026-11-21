@@ -144,7 +144,7 @@ snapshot and configuration; the QEMU oracle implements IEEE fused multiply-add
 like os25 and cannot model os20's reduced-accuracy FMA. Deltarune `field`
 currently fails its QEMU state oracle at frame 2801 on every platform; use
 `bmenu` and `dodge`. See the
-[2026-11-20 results](../../../bench/2026-11-20-runtime-19d9d50-os20-results.md).
+[2026-11-20 results](https://github.com/zenibako/pocket-dev-tools/issues/6).
 
 ## Butterscotch calibration and sprite probes
 

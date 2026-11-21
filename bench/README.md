@@ -185,7 +185,7 @@ The QEMU capture oracle uses IEEE fused multiply-add, like os25. rt-os20's CPU
 uses `--fma-reduced-accuracy`. A float result that differs only on rt-os20 would
 fail its QEMU oracle; compare rt-os20 against rt-os25 RTL outputs (same
 snapshot and configuration) to separate that from a port regression. The
-[19d9d50 results](2026-11-20-runtime-19d9d50-os20-results.md) found identical
+[19d9d50 results](https://github.com/zenibako/pocket-dev-tools/issues/6) found identical
 outputs in all sampled frames and compare simulated ratios with the Pocket.
 
 ## Windows and switches

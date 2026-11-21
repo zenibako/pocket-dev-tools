@@ -176,10 +176,19 @@ class RegressionTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, '[Ff]lags|switches'):
                     self.baseline([case], name='malformed-' + str(number))
 
+    def test_platform_options_join_case_identity_with_defaults_normalized(self):
+        config = json.loads((self.case('baseline') / 'experiment.json').read_text())
+        key = regression.config_key(config)
+        self.assertEqual(key, regression.config_key(dict(config, loop_align=64, cpu_platform='os25')))
+        self.assertNotEqual(key, regression.config_key(dict(config, loop_align=8)))
+        self.assertNotEqual(key, regression.config_key(dict(config, cpu_platform='rt-os20')))
+        unaligned = dict(config, alignment=False)
+        self.assertEqual(regression.config_key(unaligned), regression.config_key(dict(unaligned, loop_align=None)))
+
     def test_generated_candidates_preserve_ordered_flags_in_real_case_configuration(self):
         flags = ['-DCOUNT=2', '-DENABLE_VM_GML_PROFILER', '-UENABLE_VM_GML_PROFILER']
         base = self.case('baseline', extra_cflags=flags)
-        record = {'config': json.loads((base / 'experiment.json').read_text())}
+        record = {'config': dict(json.loads((base / 'experiment.json').read_text()), loop_align=8)}
         runtime = self.root / 'runtime'
         for name in ['build/rtl', 'build/fullframe/rtl']:
             (runtime / name).mkdir(parents=True)
@@ -202,6 +211,8 @@ class RegressionTest(unittest.TestCase):
         config = json.loads((cases[0] / 'experiment.json').read_text())
         self.assertEqual(config.get('extra_cflags'),
                          ['-DCOUNT=2', '-DENABLE_VM_GML_PROFILER', '-UENABLE_VM_GML_PROFILER'])
+        self.assertEqual(config.get('loop_align'), 8)
+        self.assertNotIn('cpu_platform', config)
 
     def test_pixel_mismatch_fails_and_retains_report_images(self):
         path = self.baseline([self.case('baseline')])
