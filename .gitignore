@@ -10,3 +10,6 @@ __pycache__/
 # Temporary private imports
 /.bootstrap-*/
 /experiments/
+
+# Imported runtime trees and netlists (the runtimes/*.json locks are tracked)
+/runtimes/*/

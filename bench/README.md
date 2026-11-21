@@ -146,6 +146,48 @@ For a renderer regression probe, export another name with `snapshot --patch
 /path/to/change.patch`. Patches are restricted to runner C/header sources and
 applied only inside the new private snapshot.
 
+## Runtime platforms
+
+`--cpu-platform` selects the CPU and RTL that replay runs on. The default
+`os25` is the frozen model in `inputs/`, so existing baselines and case
+identities are unchanged. `rt-os25` and `rt-os20` are pocket-runtime-19d9d50
+(openfpgaCore `19d9d50`, openfpgaOS API 0.9.1), pinned in
+[`runtimes/pocket-runtime-19d9d50.json`](../runtimes/pocket-runtime-19d9d50.json):
+its RTL sources, and the exact VexiiRiscv netlists fitted into the released
+`os25.rbf_r` and `os20.rbf_r` (both 100 MHz). Butterscotch releases ship os20
+from zenibako/butterscotch-pocket#132 onwards, so use `rt-os20` for current
+releases and `rt-os25` beside it for platform comparisons.
+
+Import the runtime once from a local openfpgaCore clone and the directory that
+holds the pinned netlists (generated files; the import checks every hash):
+
+```sh
+python3 runtimes.py import --core /path/to/openfpgaCore --netlists /path/to/VexiiRiscv
+python3 runtimes.py verify
+python3 experiments.py run --snapshot NAME --game undertale --window flowey --kind timing \
+  --alignment --loop-align 8 --cpu-platform rt-os20
+```
+
+The import reads Git objects for the pinned commit only and stays private under
+`runtimes/<id>/`. Each platform is built once into `experiments/platform/`,
+keyed by the replay adapter and netlist hash, and copied into each case. The
+platform is recorded in the case configuration as `cpu_platform`; reports pair
+traced and timing cases only on the same platform.
+
+Verilator runs the real netlists, so dual issue, the 64 KB os20 data cache,
+radix-4 division, reduced-accuracy FMA and open-row tracking are modeled as
+fitted. Scanout contention beyond `--traffic scanout`, interrupts, the audio
+hardware, SD latency, the production allocator and OS services, and the FPGA
+timing miss are not. The existing cache/pipeline observers were validated on
+single-issue os25 only; do not apply them to `rt-os20` without new checks.
+
+The QEMU capture oracle uses IEEE fused multiply-add, like os25. rt-os20's CPU
+uses `--fma-reduced-accuracy`. A float result that differs only on rt-os20 would
+fail its QEMU oracle; compare rt-os20 against rt-os25 RTL outputs (same
+snapshot and configuration) to separate that from a port regression. The
+[19d9d50 results](https://github.com/zenibako/pocket-dev-tools/issues/6) found identical
+outputs in all sampled frames and compare simulated ratios with the Pocket.
+
 ## Windows and switches
 
 | Game | `--window` | Frames | Captured scene |
@@ -193,6 +235,9 @@ They do not cover every frame in those sections or every battle.
   review's description of the measured card. This extension's `port` default
   intentionally follows the request for no extra alignment. Exact card flag
   parity remains unverified.
+  Add `--loop-align 8` to match the SDK of pocket-runtime-19d9d50, whose
+  `sdk.mk` keeps `-falign-functions=64` but aligns loops to 8 bytes. The value
+  is part of the case identity only when given, so older cases keep theirs.
 - `--extra-cflags='-DUT_CACHED_HELD_ROWS'` applies ordered experiment defines
   and undefines after the port defaults. Only single `-DNAME[=VALUE]` and
   `-UNAME` tokens are accepted; include, output, plugin and linker options

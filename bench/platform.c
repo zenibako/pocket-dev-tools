@@ -22,6 +22,8 @@ int of_video_check_mode(const of_video_mode_t*m,of_video_mode_t*out){if(!m||m->w
 int of_video_set_mode(const of_video_mode_t*m){if(of_video_check_mode(m,&mode))return -1;return 0;}
 void of_video_get_mode(of_video_mode_t*m){*m=mode;}
 uint8_t *of_video_surface(void){return buffers[draw_buf];}
+/* Current ports blank every display buffer through this (0/1 here; no third buffer). */
+uint8_t *of_video_buffer_addr(int idx){return idx>=0&&idx<2?buffers[idx]:NULL;}
 void of_video_flip(void){presented=buffers[draw_buf];draw_buf^=1;}
 void of_video_wait_flip(void){}
 void of_video_set_color_mode(int x){(void)x;}

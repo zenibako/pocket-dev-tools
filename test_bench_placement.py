@@ -1,5 +1,6 @@
 """Exercise actual placement parsing with DWARF records and the failed RV32 ELF."""
 import ast
+import re
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -98,7 +99,7 @@ class PlacementTest(unittest.TestCase):
                     break
                 if node.name not in ['sha', 'save']:
                     functions.append(node)
-        cls.namespace = {}
+        cls.namespace = {'re': re}
         exec(compile(ast.Module(body=functions, type_ignores=[]), 'bench/rtl.py', 'exec'), cls.namespace)
 
     def placement(self, elf, variant='sdram', current=True):

@@ -22,6 +22,9 @@ it does not build a core, deploy it or write to the card. The `harness-revision`
 importer remains limited to the pinned os25/100 MHz Butterscotch report format.
 The separate [Pico8 replay adapter](../pico8/README.md) can use os20/90 MHz;
 profile registration does not establish equivalence to its simulated platform.
+Butterscotch revision replay can also select the pinned pocket-runtime-19d9d50
+os25/os20 platforms (`--cpu-platform`, both 100 MHz). Those are simulation
+platforms, not device profiles; keep their evidence in separate rows.
 
 ## Create a profile from actual artifacts
 

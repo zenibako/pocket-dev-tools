@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preload captured RV32 process state and replay complete frames on os25 RTL."""
+"""Preload captured RV32 process state and replay complete frames on os25 RTL (frozen or runtime platform)."""
 import argparse,hashlib,json,os,re,struct,subprocess,sys
 from pathlib import Path
 from elftools.elf.elffile import ELFFile
@@ -9,7 +9,7 @@ def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def save(p,x):p.write_text(json.dumps(x,indent=2)+'\n')
 def interpreter_address(symbols,variant):
  names=('executeLoop','executeBytecodeInstructions')
- loops=[value for name,value in symbols.items() if any(name==base or name.startswith(base+'.constprop.') for base in names)]
+ loops=[value for name,value in symbols.items() if any(name==base or re.fullmatch(re.escape(base)+r'(\.(constprop|isra)\.\d+)+',name) for base in names)]
  if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
  loop=loops[0]
  if variant=='bram' and not 0x4000<=loop<0x7800:raise RuntimeError('Interpreter was not placed in application BRAM')
@@ -92,7 +92,7 @@ def interpreter_placement(elf,variant,current=False):
  if table is None:raise RuntimeError('Missing interpreter symbol table')
  symbols=list(table.iter_symbols())
  names=('executeLoop','executeBytecodeInstructions')
- loops=[symbol for symbol in symbols if any(symbol.name==name or symbol.name.startswith(name+'.constprop.') for name in names)]
+ loops=[symbol for symbol in symbols if any(symbol.name==name or re.fullmatch(re.escape(name)+r'(\.(constprop|isra)\.\d+)+',symbol.name) for name in names)]
  bounds=(0x4000,0x7800) if variant=='bram' else (0x10400000,0x10800000)
  if loops:
   if len(loops)!=1:raise RuntimeError('Expected exactly one interpreter loop symbol')
@@ -154,6 +154,9 @@ def prepare(game,variant):
 def rtl(jobs):
  d=BUILD/'rtl';d.mkdir(parents=True,exist_ok=True)
  leaf=ROOT/'build/rtl';source=(leaf/'main.cpp').read_text()
+ # A runtime platform selects its pinned netlist; it must be the one the leaf was generated for.
+ cpu=Path(os.environ.get('HARNESS_CPU',str(harness.CPU)))
+ if sha(cpu)!=json.loads((leaf/'rtl.json').read_text())['cpu_sha256']:raise RuntimeError('CPU netlist differs from the leaf platform')
  a=source.index('static const uint32_t SDRAM_OS_WORD');b=source.index('// ========================================================================\n// Main',a)
  loader=r'''static const uint32_t SDRAM_OS_WORD = 0x10400000u/4u;
 static std::vector<uint32_t> g_image;
@@ -216,7 +219,7 @@ static void service_files() {
  (d/'main.cpp').write_text(source)
  # Reuse the verified Pocket wrapper, controller twin and CPU, in a separate build directory.
  test=harness.OS/'src/fpga/test';mk=(leaf/'test.mk').read_text();(d/'test.mk').write_text(mk)
- command=['make','-f',d/'test.mk',d/'obj/Vtb_system',f'SYSTEM_SDRAM_DIR={d}/obj',f'SYSTEM_SDRAM_CPP={d}/main.cpp',f'VEXII_MISTER={harness.CPU}',f'VERILATOR=verilator -j {jobs} '+ ' '.join('+define+'+x for x in json.loads((leaf/'rtl.json').read_text())['definitions'])]
+ command=['make','-f',d/'test.mk',d/'obj/Vtb_system',f'SYSTEM_SDRAM_DIR={d}/obj',f'SYSTEM_SDRAM_CPP={d}/main.cpp',f'VEXII_MISTER={cpu}',f'VERILATOR=verilator -j {jobs} '+ ' '.join('+define+'+x for x in json.loads((leaf/'rtl.json').read_text())['definitions'])]
  harness.run(command,d/'compile.log',cwd=test)
  save(d/'rtl.json',dict(simulator_sha256=sha(d/'obj/Vtb_system'),source_sha256=sha(d/'main.cpp'),leaf_rtl_sha256=sha(leaf/'rtl.json'),generator_sha256=sha(ROOT/'fullframe/rtl.py')))
 

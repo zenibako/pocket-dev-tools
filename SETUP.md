@@ -1,6 +1,7 @@
 # Local setup
 
-Use Python 3.10+, Git, Docker/Colima, Clang, SDL2 and pkg-config. The Dockerfiles
+Use Python 3.10+ (3.10.12+ for `runtimes.py import`, which extracts with
+the `data` filter), Git, Docker/Colima, Clang, SDL2 and pkg-config. The Dockerfiles
 provide the RV32 GCC, Verilator, Java/sbt and QEMU toolchains. All commands below
 run from this repository root. Nothing deploys to a Pocket.
 

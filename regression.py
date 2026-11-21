@@ -44,9 +44,18 @@ def extra_cflags(config):
     return experiments.compiler_switches(shlex.join(flags))
 
 
+def platform_options(config):
+    # Cases record these only when they differ from the default, so normalize
+    # an omitted value to what the build used: the os25 platform, and 64-byte
+    # loops when functions are aligned.
+    return {'cpu_platform': config.get('cpu_platform', 'os25'),
+            'loop_align': config.get('loop_align', 64) if config['alignment'] else None}
+
+
 def config_key(config):
     identity = {f: config[f] for f in FIELDS}
     identity['extra_cflags'] = extra_cflags(config)
+    identity.update(platform_options(config))
     return json.dumps(identity, sort_keys=True)
 
 
@@ -348,6 +357,9 @@ def fresh_candidates(args, records, traffic, run_id):
         config = record['config']
         options = {f: config[f] for f in FIELDS if f not in ['first_frame', 'adapter_sources', 'launcher_sha256', 'kind']}
         options['extra_cflags'] = shlex.join(extra_cflags(config))
+        # Pass the recorded values through unchanged so a rerun keeps the case's identity.
+        options['cpu_platform'] = config.get('cpu_platform', 'os25')
+        options['loop_align'] = config.get('loop_align')
         run = argparse.Namespace(**options, snapshot=name, traffic=traffic, stage='all', negative=False, jobs=args.jobs)
         root = experiments.run_case(run, config['kind'])
         run.stage, run.negative = 'replay', True

@@ -1,16 +1,19 @@
 ---
 name: os25-harness
 argument-hint: "[harness: path or host:path of the pocket-dev-tools checkout]"
-description: Test Pico8Pocket on the isolated os20/90 MHz RTL adapter, or Butterscotch Undertale and Deltarune Chapter 1 on os25. Use for fixed-seed cart performance comparisons, baseline/candidate output replay, supported cache/pipeline analysis, sprite probes or hardware calibration evidence.
+description: Test Pico8Pocket on the isolated os20/90 MHz RTL adapter, or Butterscotch Undertale and Deltarune Chapter 1 on the frozen os25 model or the pinned pocket-runtime-19d9d50 os25/os20 platforms (Butterscotch releases ship os20). Use for fixed-seed cart performance comparisons, baseline/candidate output replay, os20-versus-os25 platform comparisons, supported cache/pipeline analysis, sprite probes or hardware calibration evidence.
 ---
 
-# openFPGA replay: Pico8Pocket os20 and Butterscotch os25
+# openFPGA replay: Pico8Pocket os20 and Butterscotch os25/os20
 
 Use the standalone `pocket-dev-tools` repository (formerly `pocket-harness`) for functional RV32 replay
 and simulated CPU/cache/memory measurements. Desktop captures check broader
 scenes; the harness measures selected target workloads; a Pocket run checks
 actual OS, SD, display/audio and board behavior. Select **os20 at 90 MHz for
-Pico8Pocket performance** and os25 at 100 MHz for Butterscotch. Pico8Pocket's
+Pico8Pocket performance**. For Butterscotch, the frozen os25 model at 100 MHz
+stays the default for existing baselines; current releases ship the os20
+bitstream of pocket-runtime-19d9d50 (zenibako/butterscotch-pocket#132), so
+replay them with `--cpu-platform rt-os20` beside `rt-os25` (both 100 MHz). Pico8Pocket's
 separate adapter matches its documented CPU configuration; exact equivalence to
 the shipped bitstream and complete hardware timing parity remain unproven.
 Do not generalize the bounded cart/scene or game/chapter evidence.
@@ -72,6 +75,25 @@ committed revision. Preserve the original baseline and failed cases. Compare
 matching game/window, mode, compiler/alignment, native setting, placement,
 framebuffer, audio, clock-cost and build kind. Use both games for shared VM or
 renderer changes when the affected paths are covered.
+
+## Butterscotch runtime platforms
+
+`experiments.py run --cpu-platform rt-os25|rt-os20` replays on openfpgaCore
+`19d9d50`: its RTL and the exact CPU netlists fitted into the released
+bitstreams, pinned in `runtimes/pocket-runtime-19d9d50.json`. Import once with
+`python3 runtimes.py import --core CLONE --netlists DIR`; the import checks
+every source and netlist hash. Match the release build with
+`--alignment --loop-align 8`. The default `os25` is the frozen model; compare
+cases only on the same platform, and use `rt-os20` against `rt-os25` (same
+snapshot and configuration) for os20 platform questions. Read the
+[bench README section](../../../bench/README.md#runtime-platforms) for limits.
+
+rt-os20 models dual issue, the 64 KB data cache, radix-4 division and
+`--fma-reduced-accuracy` because Verilator runs the fitted netlist. QEMU
+captures use IEEE fused multiply-add, like os25, and have no reduced-FMA mode:
+if an rt-os20 case fails its QEMU oracle while the matching rt-os25 case
+passes, compare the two RTL outputs before calling it a port regression. The
+single-lane cache/pipeline observers are not validated on rt-os20.
 
 Supported Butterscotch windows are Undertale `flowey` 2400–2402 and Deltarune Chapter 1
 `field` 2800–2802, `bmenu` 3120–3122, `dodge` 3323–3325. These samples are not
@@ -154,7 +176,8 @@ run does not explain the older ~19.9 microsecond v0.7 game probe or establish
 full-frame parity. Do not apply a universal calibration multiplier.
 
 Call RTL timings **simulated**, using each case's recorded clock: 90 MHz for
-Pico8Pocket os20, 100 MHz for Butterscotch os25. Refill latency is not CPU stall,
+Pico8Pocket os20, 100 MHz for Butterscotch os25 and for both 19d9d50 runtime
+platforms. Refill latency is not CPU stall,
 overlapping masks cannot be summed, and a disjoint presentation priority is not
 recoverable speedup. Supported os25 architectural retirement/CPI uses observer
 v3 CommitService; do not substitute the older commit-decision count or apply
