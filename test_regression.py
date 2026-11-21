@@ -140,6 +140,41 @@ class RegressionTest(unittest.TestCase):
         self.assertEqual(result, platform)
         self.assertEqual(json.loads((platform / 'build/fullframe/rtl/rtl.json').read_text()), {'jobs': 1})
 
+    def test_failed_runtime_platform_setup_is_retried_not_reused(self):
+        (self.root / 'inputs/os').mkdir(parents=True)
+        runtime_tree = self.root / 'runtime-os'
+        runtime_tree.mkdir()
+        entry = {'variant': 'os20', 'clock_hz': 100000000, 'netlist': 'cpu.v', 'netlist_sha256': 'c' * 64}
+        attempts = []
+
+        def docker(root, *cmd):
+            attempts.append(root)
+            if len(attempts) == 1:
+                return ['false']  # the first leaf RTL build fails
+            script = ('import pathlib; [pathlib.Path(p).parent.mkdir(parents=True, exist_ok=True) or pathlib.Path(p).write_text("{}") '
+                      'for p in ["build/rtl/rtl.json", "build/fullframe/rtl/rtl.json"]]')
+            return ['python3', '-c', script]
+
+        real_run = subprocess.run
+
+        def run(command, check, cwd=None):
+            # Docker would mount the platform folder at /work; run there instead.
+            return real_run(command, check=check, cwd=attempts[-1])
+
+        with patch.object(experiments.runtimes, 'platforms', return_value={'rt-os20': ('r', {}, entry)}), \
+                patch.object(experiments.runtimes, 'verify'), \
+                patch.object(experiments.runtimes, 'tree', return_value=runtime_tree), \
+                patch.object(experiments, 'tooling', lambda root: root.mkdir(parents=True)), \
+                patch.object(experiments, 'docker', docker), \
+                patch.object(experiments.subprocess, 'run', run):
+            with self.assertRaises(subprocess.CalledProcessError):
+                experiments.platform(jobs=1, cpu_platform='rt-os20')
+            self.assertEqual(list((self.root / 'experiments/platform').iterdir()), [attempts[0]])
+            root = experiments.platform(jobs=1, cpu_platform='rt-os20')
+        self.assertFalse(attempts[0].exists())
+        self.assertTrue((root / 'build/rtl/rtl.json').exists())
+        self.assertTrue((root / 'build/fullframe/rtl/rtl.json').exists())
+
     def test_baseline_is_write_once_and_check_does_not_modify_it(self):
         base = self.case('baseline')
         path = self.baseline([base])

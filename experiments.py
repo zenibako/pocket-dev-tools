@@ -165,19 +165,25 @@ def platform(jobs=4, cpu_platform='os25'):
         netlist = '/work/inputs/os/' + runtimes.NETLIST_DIR + '/' + entry['netlist']
     root = PRIVATE / 'platform' / version
     if not root.exists():
-        tooling(root)
-        copy_tree(ROOT / 'inputs', root / 'inputs')
-        shutil.copy2(ROOT / 'input-manifest.json', root / 'input-manifest.json')
+        # Assemble in a staging folder and publish it only once the leaf RTL is
+        # in place, so a failed setup is retried instead of reused half-built.
+        staging = root.with_name(version + '.partial')
+        if staging.exists():
+            shutil.rmtree(staging)  # a previous attempt of this same setup failed
+        tooling(staging)
+        copy_tree(ROOT / 'inputs', staging / 'inputs')
+        shutil.copy2(ROOT / 'input-manifest.json', staging / 'input-manifest.json')
         if runtime is None:
-            copy_tree(ROOT / 'build/rtl', root / 'build/rtl')
+            copy_tree(ROOT / 'build/rtl', staging / 'build/rtl')
         else:
-            shutil.rmtree(root / 'inputs/os')
-            copy_tree(runtimes.tree(runtime), root / 'inputs/os')
+            shutil.rmtree(staging / 'inputs/os')
+            copy_tree(runtimes.tree(runtime), staging / 'inputs/os')
             mhz = entry['clock_hz'] // 1000000
-            subprocess.run(docker(root, 'python3', '-c',
+            subprocess.run(docker(staging, 'python3', '-c',
                 'import harness; from pathlib import Path; '
                 f'harness.rtl({jobs}, variant={entry["variant"]!r}, dest=Path("/work/build/rtl"), '
                 f'cpu=Path({netlist!r}), mhz={mhz}, compile_leaf=False)'), check=True)
+        staging.rename(root)
     output = root / 'build/fullframe/rtl/rtl.json'
     if not output.exists():
         env = [] if runtime is None else ['env', 'HARNESS_CPU=' + netlist]
